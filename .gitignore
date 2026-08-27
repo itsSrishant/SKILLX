@@ -1,0 +1,30 @@
+# Documentation / private project notes
+*.md
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.db
+*.sqlite
+
+# Next.js & Build files
+.next/
+dist/
+build/
+
+# macOS
+.DS_Store
