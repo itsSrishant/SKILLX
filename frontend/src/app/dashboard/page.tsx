@@ -8,7 +8,7 @@ import {
   Cell, LineChart, Line, AreaChart, Area, PieChart, Pie, Legend,
 } from "recharts";
 
-const API = "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ── India Flag Government Theme (Saffron, Ashoka Blue, India Green) ────────────
 const C = {
@@ -683,57 +683,102 @@ function DashboardInner() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: C.bg }}>
-                  {[t.courseTitle, "Type", t.sector, t.district, t.score, t.missingSkills, t.bridgePack].map(h => (
-                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                  {[t.courseTitle, "Type & Sector", "Location", "Readiness Score", "Skill Status (Child-Simple View)", "Recommended Upgrade Action"].map(h => (
+                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredGaps.length === 0 ? (
-                  <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: C.textMuted, fontSize: 14 }}>
+                  <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: C.textMuted, fontSize: 14 }}>
                     No courses match your filters. Run engines to populate data.
                   </td></tr>
-                ) : filteredGaps.map((gap, i) => (
-                  <tr key={gap.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafafa", transition: "background 0.1s" }}
-                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = C.orangeLight}
-                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = i % 2 === 0 ? "white" : "#fafafa"}
-                  >
-                    <td style={{ padding: "14px 16px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>{gap.course_title}</div>
-                    </td>
-                    <td style={{ padding: "14px 16px" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: gap.institute_type === "ITI" ? C.skyLight : C.purpleLight, color: gap.institute_type === "ITI" ? C.sky : C.purple, border: `1px solid ${gap.institute_type === "ITI" ? C.skyMid : "#e9d5ff"}` }}>{gap.institute_type}</span>
-                    </td>
-                    <td style={{ padding: "14px 16px", fontSize: 12, color: C.textSub, maxWidth: 160 }}>{gap.sector}</td>
-                    <td style={{ padding: "14px 16px", fontSize: 12, color: C.textSub }}>{gap.district}</td>
-                    <td style={{ padding: "14px 16px" }}><ScoreChip score={gap.alignment_score} /></td>
-                    <td style={{ padding: "14px 16px" }}>
-                      {gap.missing_skills.length === 0
-                        ? <span style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>{t.fullyAligned}</span>
-                        : <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                          {gap.missing_skills.slice(0, 2).map(s => (
-                            <span key={s} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: C.redLight, color: C.red, fontWeight: 600 }}>{s}</span>
-                          ))}
-                          {gap.missing_skills.length > 2 && <span style={{ fontSize: 11, color: C.textMuted }}>+{gap.missing_skills.length - 2}</span>}
-                        </div>
-                      }
-                    </td>
-                    <td style={{ padding: "14px 16px" }}>
-                      {gap.missing_skills.length > 0
-                        ? <Link href={`/bridge-pack/${gap.course_id}`} style={{
-                            padding: "7px 14px", borderRadius: 8, border: "none",
-                            background: `linear-gradient(135deg, ${C.orange}, #ea580c)`,
-                            color: "white", textDecoration: "none", display: "inline-block",
-                            fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
-                            boxShadow: `0 2px 8px rgba(249,115,22,0.25)`,
-                          }}>
-                            🎯 {t.getBridgePack} ↗
-                          </Link>
-                        : <span style={{ fontSize: 11, color: C.textMuted }}>—</span>
-                      }
-                    </td>
-                  </tr>
-                ))}
+                ) : filteredGaps.map((gap, i) => {
+                  const fullyCount = (gap.fully_covered_skills || []).length;
+                  const partialCount = (gap.partially_covered_skills || []).length;
+                  const missingCount = (gap.missing_skills || []).length;
+                  const topMissing = (gap.missing_skills || []).slice(0, 2);
+
+                  return (
+                    <React.Fragment key={gap.id}>
+                      <tr style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafafa", transition: "background 0.1s" }}
+                        onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = C.orangeLight}
+                        onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = i % 2 === 0 ? "white" : "#fafafa"}
+                      >
+                        {/* Title & Code */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.3 }}>{gap.course_title}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Course #{gap.course_id} · DVET Syllabus ID</div>
+                        </td>
+
+                        {/* Type & Sector */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 999, background: gap.institute_type === "ITI" ? C.skyLight : C.purpleLight, color: gap.institute_type === "ITI" ? C.sky : C.purple, border: `1px solid ${gap.institute_type === "ITI" ? C.skyMid : "#e9d5ff"}` }}>
+                            {gap.institute_type}
+                          </span>
+                          <div style={{ fontSize: 12, color: C.textSub, marginTop: 4 }}>{gap.sector}</div>
+                        </td>
+
+                        {/* District Location */}
+                        <td style={{ padding: "14px 16px", fontSize: 13, fontWeight: 600, color: C.text }}>
+                          📍 {gap.district}
+                        </td>
+
+                        {/* Score Chip */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <ScoreChip score={gap.alignment_score} />
+                        </td>
+
+                        {/* Visual Child-Simple Skill Status Badges */}
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {/* Green Covered Ticks */}
+                            {fullyCount > 0 && (
+                              <div style={{ fontSize: 11, color: C.green, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                                <span>✓</span> {fullyCount} Mastered Trade Skills
+                              </div>
+                            )}
+
+                            {/* Orange Partial Matches */}
+                            {partialCount > 0 && (
+                              <div style={{ fontSize: 11, color: "#d97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                                <span>◐</span> {partialCount} Skills Need 5h Upgrade
+                              </div>
+                            )}
+
+                            {/* Red Missing Skill Crosses */}
+                            {missingCount > 0 ? (
+                              <div style={{ fontSize: 11, color: C.red, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                                <span>✕</span> Missing: {topMissing.join(", ")} {missingCount > 2 ? `(+${missingCount - 2} more)` : ""}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>
+                                🌟 100% Industry Aligned
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Recommended Upgrade Action Button */}
+                        <td style={{ padding: "14px 16px" }}>
+                          {missingCount > 0 ? (
+                            <Link href={`/bridge-pack/${gap.course_id}`} style={{
+                              padding: "8px 16px", borderRadius: 10, border: "none",
+                              background: `linear-gradient(135deg, ${C.orange}, #ea580c)`,
+                              color: "white", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6,
+                              fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap",
+                              boxShadow: `0 3px 10px rgba(249,115,22,0.25)`,
+                            }}>
+                              ⚡ Upgrade Curriculum Plan ↗
+                            </Link>
+                          ) : (
+                            <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>✓ No Action Needed</span>
+                          )}
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
