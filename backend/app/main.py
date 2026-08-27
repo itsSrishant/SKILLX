@@ -125,15 +125,15 @@ def get_latency_estimates():
 @app.post("/api/v1/engines/run-batch")
 def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
     """
-    Ingest and analyze a batch of 50 new real courses from the master catalogue into SQLite DB.
-    Inserts 50 real new Course, ExtractedSkill, and SkillGapAnalysis database records.
+    Ingest and analyze a batch of N new real courses and jobs into SQLite DB.
+    Inserts N real new Course, JobPosting, ExtractedSkill, and SkillGapAnalysis database records.
     """
     global pipeline_state
     pipeline_start = time.time()
     
     try:
         e1 = Engine1CourseIngestion(db).run_ingestion(limit=batch_size)
-        e2 = Engine2JobIngestion(db).run_ingestion()
+        e2 = Engine2JobIngestion(db).run_ingestion(limit=batch_size)
         e3 = Engine3SkillExtraction(db).run_extraction()
         e4 = Engine4SkillGapAnalysis(db).run_analysis()
         
@@ -141,14 +141,19 @@ def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
         total_latency_ms = round((pipeline_end - pipeline_start) * 1000, 2)
         
         total_courses_db = db.query(Course).filter(Course.status == "ACTIVE").count()
-        remaining_in_catalogue = max(0, 547 - total_courses_db)
+        total_jobs_db = db.query(JobPosting).filter(JobPosting.status == "ACTIVE").count()
+        remaining_courses = max(0, 547 - total_courses_db)
+        remaining_jobs = max(0, 500 - total_jobs_db)
 
         return {
             "status": "SUCCESS",
             "batch_size": batch_size,
             "courses_added_in_batch": e1.get("courses_added", 0),
+            "jobs_added_in_batch": e2.get("jobs_added", 0),
             "total_courses_in_db": total_courses_db,
-            "remaining_in_catalogue": remaining_in_catalogue,
+            "total_jobs_in_db": total_jobs_db,
+            "remaining_in_catalogue": remaining_courses,
+            "remaining_jobs_in_catalogue": remaining_jobs,
             "total_latency_ms": total_latency_ms,
             "engine1": e1,
             "engine2": e2,
@@ -254,10 +259,14 @@ def get_gap_analysis(db: Session = Depends(get_db)):
             "district": r.district,
             "alignment_score": r.alignment_score,
             "total_jobs_analyzed": r.total_jobs_analyzed,
+            "core_skill_coverage_pct": r.core_skill_coverage_pct or 0.0,
+            "emerging_skill_coverage_pct": r.emerging_skill_coverage_pct or 0.0,
             "fully_covered_skills": r.fully_covered_skills or [],
             "partially_covered_skills": r.partially_covered_skills or [],
             "missing_skills": r.missing_skills or [],
             "demand_frequency_map": r.demand_frequency_map or {},
+            "detailed_skills_breakdown": r.detailed_skills_breakdown or {},
+            "top_skill_gaps": r.top_skill_gaps or [],
             "execution_latency_ms": r.execution_latency_ms
         })
     return result

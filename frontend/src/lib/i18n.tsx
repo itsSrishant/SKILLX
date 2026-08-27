@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-export type Lang = "en" | "mr";
+export type Lang = "en" | "mr" | "hi";
 
 const translations = {
   en: {
@@ -10,11 +10,19 @@ const translations = {
     appSubtitle: "Maharashtra Labour Market Intelligence Platform",
     adminPortal: "Government Admin Dashboard",
     studentPortal: "Student Portal",
-    langToggle: "मराठी",
+    langToggle: "Language",
 
-    // Overview Cards
+    // Sidebar items
+    navOverview: "Overview",
+    navCourses: "Courses",
+    navDistricts: "Districts",
+    navGaps: "Skill Gaps",
+    navBridge: "Bridge Packs",
+    navCrawler: "Data Crawler",
+
+    // Overview Cards & Highlights
     dvetTrades: "DVET ITI Trades",
-    mssdsCatalog: "MSSDS Course Catalog",
+    mssdsCatalog: "MSSDS Course Master",
     activeJobs: "Active Job Postings",
     skillTerms: "Skill Dictionary Terms",
     unknownSkills: "Candidate Unknown Skills",
@@ -30,13 +38,18 @@ const translations = {
     inactive: "INACTIVE",
     expired: "EXPIRED",
 
-    // Engine Panel
+    // Engine & Batch Panel
     runEngines: "Run All Engines",
     running: "Running...",
     enginePanel: "4-Engine Pipeline Execution",
     estimatedTime: "Estimated Time Remaining",
     lastRun: "Last Pipeline Run",
     pipelineIdle: "Pipeline Idle — Click to Run",
+    batchCatalogueTitle: "Course Catalogue Analysis",
+    remainingCourses: "courses remaining in catalogue",
+    analysedOf: "analysed",
+    analyseNextBatch: "⚡ Analyse Next 50 Courses",
+    analysingBatch: "⚙ Analysing 50 Courses...",
 
     // Course Table
     courseAlignment: "Course Alignment Table",
@@ -49,6 +62,7 @@ const translations = {
     getBridgePack: "Get Bridge Pack",
     generating: "Generating...",
     fullyAligned: "Fully Aligned ✓",
+    searchPlaceholder: "Search course title, trade or sector...",
 
     // GIS Map
     mapTitle: "Maharashtra District Skill Deficit Map",
@@ -71,12 +85,6 @@ const translations = {
     category: "Category",
     synonyms: "Synonyms",
     confidence: "Confidence",
-
-    // Crawler
-    triggerCrawl: "Trigger Full Crawl (85 Trades)",
-    crawlerStatus: "Crawler Status",
-    crawling: "Crawling...",
-    crawlComplete: "Crawl Complete",
 
     // Student Portal
     studentTitle: "Find Your Right Course",
@@ -102,13 +110,21 @@ const translations = {
     appSubtitle: "महाराष्ट्र श्रमबाजार बुद्धिमत्ता व्यासपीठ",
     adminPortal: "सरकारी प्रशासक डॅशबोर्ड",
     studentPortal: "विद्यार्थी पोर्टल",
-    langToggle: "English",
+    langToggle: "भाषा",
 
-    // Overview Cards
+    // Sidebar items
+    navOverview: "पूर्वावलोकन",
+    navCourses: "अभ्यासक्रम",
+    navDistricts: "जिल्हे",
+    navGaps: "कौशल्य तफावत",
+    navBridge: "ब्रिज पॅक",
+    navCrawler: "डेटा क्रॉलर",
+
+    // Overview Cards & Highlights
     dvetTrades: "DVET ITI व्यवसाय",
-    mssdsCatalog: "MSSDS अभ्यासक्रम सूची",
+    mssdsCatalog: "MSSDS अभ्यासक्रम मास्टर",
     activeJobs: "सक्रिय नोकरी जाहिराती",
-    skillTerms: "कौशल्य शब्दकोश अटी",
+    skillTerms: "कौशल्य शब्दकोश शब्द",
     unknownSkills: "उमेदवार अज्ञात कौशल्ये",
     avgAlignment: "सरासरी संरेखन गुण",
     highDeficit: "उच्च तूट जिल्हे",
@@ -122,13 +138,18 @@ const translations = {
     inactive: "निष्क्रिय",
     expired: "कालबाह्य",
 
-    // Engine Panel
+    // Engine & Batch Panel
     runEngines: "सर्व इंजिन चालवा",
     running: "चालू आहे...",
     enginePanel: "४-इंजिन पाइपलाइन अंमलबजावणी",
     estimatedTime: "अनुमानित उर्वरित वेळ",
     lastRun: "शेवटची पाइपलाइन धाव",
-    pipelineIdle: "पाइपलाइन बेकार — चालवण्यासाठी क्लिक करा",
+    pipelineIdle: "पाइपलाइन निष्क्रिय — चालवण्यासाठी क्लिक करा",
+    batchCatalogueTitle: "अभ्यासक्रम सूची विश्लेषण",
+    remainingCourses: "सूचीमध्ये उरलेले अभ्यासक्रम",
+    analysedOf: "विश्लेषण केले",
+    analyseNextBatch: "⚡ पुढील ५० अभ्यासक्रमांचे विश्लेषण करा",
+    analysingBatch: "⚙ ५० अभ्यासक्रमांचे विश्लेषण करत आहे...",
 
     // Course Table
     courseAlignment: "अभ्यासक्रम संरेखन तक्ता",
@@ -141,6 +162,7 @@ const translations = {
     getBridgePack: "ब्रिज पॅक मिळवा",
     generating: "तयार करत आहे...",
     fullyAligned: "पूर्णपणे संरेखित ✓",
+    searchPlaceholder: "अभ्यासक्रम शीर्षक, ट्रेड किंवा क्षेत्र शोधा...",
 
     // GIS Map
     mapTitle: "महाराष्ट्र जिल्हा कौशल्य तूट नकाशा",
@@ -158,17 +180,11 @@ const translations = {
 
     // Skill Dictionary
     skillDictionary: "कौशल्य शब्दकोश",
-    standardTerms: "मानक अटी",
+    standardTerms: "मानक शब्द",
     candidateUnknown: "उमेदवार अज्ञात कौशल्ये",
     category: "श्रेणी",
     synonyms: "समानार्थी शब्द",
     confidence: "विश्वास",
-
-    // Crawler
-    triggerCrawl: "संपूर्ण क्रॉल सुरू करा (८५ व्यवसाय)",
-    crawlerStatus: "क्रॉलर स्थिती",
-    crawling: "क्रॉल करत आहे...",
-    crawlComplete: "क्रॉल पूर्ण",
 
     // Student Portal
     studentTitle: "तुमचा योग्य अभ्यासक्रम शोधा",
@@ -188,38 +204,144 @@ const translations = {
     bridgePackReady: "ब्रिज पॅक तयार",
     noCoursesFound: "या जिल्ह्यासाठी कोणतेही अभ्यासक्रम आढळले नाहीत. दुसरा जिल्हा किंवा क्षेत्र वापरून पहा.",
   },
+  hi: {
+    // Nav / Header
+    appName: "स्किलएक्स",
+    appSubtitle: "महाराष्ट्र श्रम बाजार बुद्धिमत्ता मंच",
+    adminPortal: "सरकारी प्रशासक डैशबोर्ड",
+    studentPortal: "छात्र पोर्टल",
+    langToggle: "भाषा",
+
+    // Sidebar items
+    navOverview: "अवलोकन",
+    navCourses: "पाठ्यक्रम",
+    navDistricts: "जिले",
+    navGaps: "कौशल अंतर",
+    navBridge: "ब्रिज पैक",
+    navCrawler: "डेटा क्रॉलर",
+
+    // Overview Cards & Highlights
+    dvetTrades: "DVET ITI ट्रेड्स",
+    mssdsCatalog: "MSSDS पाठ्यक्रम मास्टर",
+    activeJobs: "सक्रिय नौकरी विज्ञापन",
+    skillTerms: "कौशल शब्दकोश पद",
+    unknownSkills: "अज्ञात कौशल",
+    avgAlignment: "औसत संरेखण स्कोर",
+    highDeficit: "उच्च घाटा वाले जिले",
+    totalCourses: "कुल अनुक्रमित पाठ्यक्रम",
+
+    // Status
+    aligned: "संरेखित",
+    moderate: "मध्यम",
+    highDeficitLabel: "उच्च घाटा",
+    active: "सक्रिय",
+    inactive: "निष्क्रिय",
+    expired: "समाप्त",
+
+    // Engine & Batch Panel
+    runEngines: "सभी इंजन चलाएं",
+    running: "चल रहा है...",
+    enginePanel: "4-इंजन पाइपलाइन निष्पादन",
+    estimatedTime: "अनुमानित शेष समय",
+    lastRun: "अंतिम पाइपलाइन रन",
+    pipelineIdle: "पाइपलाइन निष्क्रिय — चलाने के लिए क्लिक करें",
+    batchCatalogueTitle: "पाठ्यक्रम कैटलॉग विश्लेषण",
+    remainingCourses: "कैटलॉग में शेष पाठ्यक्रम",
+    analysedOf: "विश्लेषण किया गया",
+    analyseNextBatch: "⚡ अगले 50 पाठ्यक्रमों का विश्लेषण करें",
+    analysingBatch: "⚙ 50 पाठ्यक्रमों का विश्लेषण जारी...",
+
+    // Course Table
+    courseAlignment: "पाठ्यक्रम संरेखण तालिका",
+    courseTitle: "पाठ्यक्रम शीर्षक",
+    sector: "क्षेत्र",
+    district: "जिला",
+    score: "संरेखण स्कोर",
+    missingSkills: "अनुपस्थित कौशल",
+    bridgePack: "ब्रिज पैक",
+    getBridgePack: "ब्रिज पैक प्राप्त करें",
+    generating: "जनरेट हो रहा है...",
+    fullyAligned: "पूर्णतः संरेखित ✓",
+    searchPlaceholder: "पाठ्यक्रम शीर्षक, ट्रेड या क्षेत्र खोजें...",
+
+    // GIS Map
+    mapTitle: "महाराष्ट्र जिला कौशल घाटा मानचित्र",
+    mapSubtitle: "पाठ्यक्रम फ़िल्टर करने के लिए किसी जिले पर क्लिक करें",
+
+    // Bridge Pack Modal
+    bridgePackTitle: "20-घंटे का कौशल ब्रिज पैक",
+    generatedBy: "द्वारा जनरेट किया गया",
+    totalHours: "कुल घंटे",
+    modules: "मॉड्यूल",
+    activities: "गतिविधियां",
+    assessmentCriteria: "मूल्यांकन मानदंड",
+    toolsRequired: "आवश्यक उपकरण",
+    close: "बंद करें",
+
+    // Skill Dictionary
+    skillDictionary: "कौशल शब्दकोश",
+    standardTerms: "मानक शब्द",
+    candidateUnknown: "अज्ञात कौशल",
+    category: "श्रेणी",
+    synonyms: "पर्यायवाची",
+    confidence: "विश्वास",
+
+    // Student Portal
+    studentTitle: "अपना सही पाठ्यक्रम खोजें",
+    studentSubtitle: "अपने जिले में ITI और MSSDS पाठ्यक्रम खोजें और व्यक्तिगत कौशल ब्रिज योजना प्राप्त करें",
+    selectDistrict: "अपना जिला चुनें",
+    selectSector: "क्षेत्र के अनुसार फ़िल्टर करें (वैकल्पिक)",
+    searchCourses: "पाठ्यक्रम खोजें",
+    courseRecommendations: "पाठ्यक्रम सिफारिशें",
+    yourSkillGap: "आपका कौशल अंतर",
+    fullyMastered: "पूर्णतः महारत हासिल कौशल",
+    skillsToLearn: "सीखने योग्य कौशल",
+    getYourBridgePack: "मेरा 20-घंटे का ब्रिज पैक प्राप्त करें",
+    nsqfLevel: "NSQF स्तर",
+    duration: "अवधि",
+    months: "महीने",
+    eligibility: "पात्रता",
+    bridgePackReady: "ब्रिज पैक तैयार",
+    noCoursesFound: "इस जिले के लिए कोई पाठ्यक्रम नहीं मिला। कृपया दूसरा जिला या क्षेत्र चुनें।",
+  },
 };
 
 type Translations = typeof translations.en;
 
 interface LangContextType {
   lang: Lang;
+  setLang: (lang: Lang) => void;
   toggleLang: () => void;
   t: Translations;
 }
 
 const LangContext = createContext<LangContextType>({
   lang: "en",
+  setLang: () => {},
   toggleLang: () => {},
   t: translations.en,
 });
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {
     const saved = localStorage.getItem("skillx_lang") as Lang | null;
-    if (saved === "en" || saved === "mr") setLang(saved);
+    if (saved === "en" || saved === "mr" || saved === "hi") setLangState(saved);
   }, []);
 
-  const toggleLang = () => {
-    const next: Lang = lang === "en" ? "mr" : "en";
-    setLang(next);
+  const setLang = (next: Lang) => {
+    setLangState(next);
     localStorage.setItem("skillx_lang", next);
   };
 
+  const toggleLang = () => {
+    const next: Lang = lang === "en" ? "mr" : lang === "mr" ? "hi" : "en";
+    setLang(next);
+  };
+
   return (
-    <LangContext.Provider value={{ lang, toggleLang, t: translations[lang] }}>
+    <LangContext.Provider value={{ lang, setLang, toggleLang, t: translations[lang] }}>
       {children}
     </LangContext.Provider>
   );

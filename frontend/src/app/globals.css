@@ -154,3 +154,16 @@ body {
   font-size: clamp(32px, 5vw, 56px);
   font-weight: 700; line-height: 1; color: var(--tx);
 }
+
+/* Hide Next.js Dev Indicator Badge */
+nextjs-portal,
+[data-nextjs-toast],
+[data-nextjs-dialog-overlay],
+#next-logo-container,
+div[class*="dev-indicator"],
+div[class*="DevIndicator"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

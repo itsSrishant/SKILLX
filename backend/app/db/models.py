@@ -104,10 +104,15 @@ class SkillGapAnalysis(Base):
     alignment_score = Column(Float, nullable=False)  # 0 to 100 percentage
     total_jobs_analyzed = Column(Integer, default=0)
     
+    core_skill_coverage_pct = Column(Float, default=0.0)
+    emerging_skill_coverage_pct = Column(Float, default=0.0)
+    
     fully_covered_skills = Column(JSON, default=list)     # Taught & Demanded
     partially_covered_skills = Column(JSON, default=list) # Fundamentals taught but lacks advanced depth
     missing_skills = Column(JSON, default=list)           # Demanded by industry but missing in syllabus
     demand_frequency_map = Column(JSON, default=dict)     # Industry demand percentage per skill
+    detailed_skills_breakdown = Column(JSON, default=dict) # Full mathematical breakdown per skill
+    top_skill_gaps = Column(JSON, default=list)           # Top gaps with demand evidence
     
     execution_latency_ms = Column(Float, default=0.0)
     analyzed_at = Column(DateTime, default=datetime.utcnow)
