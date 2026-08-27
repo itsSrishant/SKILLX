@@ -6,11 +6,13 @@ from typing import Dict, List, Any
 
 from app.config import settings
 from app.db.database import engine, Base, get_db
-from app.db.models import Course, JobPosting, ExtractedSkill, SkillGapAnalysis, SkillDictionary
+from app.db.models import Course, JobPosting, ExtractedSkill, SkillGapAnalysis, SkillDictionary, BridgePackRecommendation
 from app.engines.engine1_course_ingestion import Engine1CourseIngestion
 from app.engines.engine2_job_ingestion import Engine2JobIngestion
 from app.engines.engine3_skill_extraction import Engine3SkillExtraction
 from app.engines.engine4_skill_gap import Engine4SkillGapAnalysis
+from app.engines.engine5_llm_bridge import Engine5LLMBridgePack
+from app.crawler.async_crawler import run_full_async_crawl, get_crawler_status
 
 Base.metadata.create_all(bind=engine)
 
@@ -252,3 +254,122 @@ def get_district_summary(db: Session = Depends(get_db)):
         })
         
     return summary
+
+# ─── Phase 3: LLM Bridge Pack Routes ──────────────────────────────────────────
+
+@app.get("/api/v1/recommendations/bridge-pack/{course_id}")
+def get_bridge_pack(course_id: int, db: Session = Depends(get_db)):
+    """Get (or generate) a 20-hour Skill Bridge Pack for a course's missing skills."""
+    engine5 = Engine5LLMBridgePack(db)
+    return engine5.generate_for_course(course_id)
+
+@app.post("/api/v1/recommendations/bridge-pack/{course_id}/generate")
+def generate_bridge_pack(course_id: int, db: Session = Depends(get_db)):
+    """Force regenerate the bridge pack for a course (re-calls LLM if API key set)."""
+    engine5 = Engine5LLMBridgePack(db)
+    return engine5.generate_for_course(course_id)
+
+@app.post("/api/v1/recommendations/generate-all")
+def generate_all_bridge_packs(db: Session = Depends(get_db)):
+    """Generate bridge packs for all courses with missing skills."""
+    engine5 = Engine5LLMBridgePack(db)
+    return engine5.generate_for_all_courses()
+
+@app.get("/api/v1/recommendations/all")
+def get_all_bridge_packs(db: Session = Depends(get_db)):
+    """List all saved bridge pack recommendations."""
+    packs = db.query(BridgePackRecommendation).all()
+    return [
+        {
+            "id": p.id,
+            "course_id": p.course_id,
+            "missing_skill": p.missing_skill,
+            "module_title": p.module_title,
+            "skill_targeted": p.skill_targeted,
+            "duration_hours": p.duration_hours,
+            "activities": p.activities,
+            "assessment_criteria": p.assessment_criteria,
+            "tools_required": p.tools_required,
+            "nsqf_level": p.nsqf_level,
+            "generated_by": p.generated_by,
+            "generated_at": p.generated_at.isoformat() if p.generated_at else None
+        }
+        for p in packs
+    ]
+
+# ─── Async Crawler Routes ──────────────────────────────────────────────────────
+
+@app.post("/api/v1/crawler/trigger")
+async def trigger_full_crawl():
+    """
+    Trigger a full async crawl of all 85 DVET ITI Trades + MSSDS catalogue.
+    Runs in async batches with polite rate limiting.
+    """
+    result = await run_full_async_crawl(batch_size=10, delay_between_batches_sec=0.1)
+    return result
+
+@app.get("/api/v1/crawler/status")
+def get_crawl_status():
+    """Get current async crawler progress."""
+    return get_crawler_status()
+
+# ─── Student Portal API Routes ─────────────────────────────────────────────────
+
+@app.get("/api/v1/student/recommendations")
+def get_student_recommendations(district: str = "Pune", sector: str = None, db: Session = Depends(get_db)):
+    """
+    Student Portal: Return recommended courses + gap analysis + bridge packs
+    filtered by district and optional sector.
+    """
+    query = db.query(Course).filter(Course.status == "ACTIVE", Course.district == district)
+    if sector:
+        query = query.filter(Course.sector.ilike(f"%{sector}%"))
+    courses = query.limit(10).all()
+
+    recommendations = []
+    for course in courses:
+        gap = db.query(SkillGapAnalysis).filter(SkillGapAnalysis.course_id == course.id).first()
+        packs = db.query(BridgePackRecommendation).filter(BridgePackRecommendation.course_id == course.id).all()
+
+        recommendations.append({
+            "course_id": course.id,
+            "course_title": course.title,
+            "institute_type": course.institute_type,
+            "sector": course.sector,
+            "district": course.district,
+            "duration_months": course.duration_months,
+            "nsqf_level": course.nsqf_level,
+            "qualification_req": course.qualification_req,
+            "alignment_score": gap.alignment_score if gap else 0,
+            "missing_skills": gap.missing_skills if gap else [],
+            "fully_covered_skills": gap.fully_covered_skills if gap else [],
+            "bridge_packs_available": len(packs),
+            "bridge_packs": [
+                {
+                    "module_title": p.module_title,
+                    "skill_targeted": p.skill_targeted,
+                    "duration_hours": p.duration_hours,
+                    "activities": p.activities[:2],  # Preview first 2 activities
+                }
+                for p in packs
+            ]
+        })
+
+    return {
+        "district": district,
+        "sector_filter": sector,
+        "total_courses": len(recommendations),
+        "recommendations": recommendations
+    }
+
+@app.get("/api/v1/student/districts")
+def get_available_districts(db: Session = Depends(get_db)):
+    """Return list of all districts with active courses."""
+    districts = db.query(Course.district).filter(Course.status == "ACTIVE").distinct().all()
+    return {"districts": [d[0] for d in districts if d[0]]}
+
+@app.get("/api/v1/student/sectors")
+def get_available_sectors(db: Session = Depends(get_db)):
+    """Return list of all sectors with active courses."""
+    sectors = db.query(Course.sector).filter(Course.status == "ACTIVE").distinct().all()
+    return {"sectors": [s[0] for s in sectors if s[0]]}

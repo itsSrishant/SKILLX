@@ -114,3 +114,37 @@ class SkillGapAnalysis(Base):
 
     # Relationships
     course = relationship("Course", back_populates="gap_analyses")
+
+
+class BridgePackRecommendation(Base):
+    __tablename__ = "bridge_pack_recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    missing_skill = Column(String, nullable=False)
+    module_title = Column(String, nullable=False)
+    skill_targeted = Column(String, nullable=False)
+    duration_hours = Column(Integer, default=4)
+    activities = Column(JSON, default=list)       # List of activity strings
+    assessment_criteria = Column(JSON, default=list)
+    tools_required = Column(JSON, default=list)
+    nsqf_level = Column(Integer, default=4)
+    generated_by = Column(String, default="rule-based")  # "llm" or "rule-based"
+    generated_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    course = relationship("Course")
+
+
+class CrawlerStatus(Base):
+    __tablename__ = "crawler_status"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="IDLE")      # IDLE, RUNNING, COMPLETED, FAILED
+    total_targets = Column(Integer, default=0)
+    completed = Column(Integer, default=0)
+    failed = Column(Integer, default=0)
+    current_batch = Column(String, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_log = Column(Text, nullable=True)
