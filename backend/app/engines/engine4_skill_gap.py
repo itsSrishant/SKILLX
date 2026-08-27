@@ -1,202 +1,341 @@
 """
-Engine 4: Deterministic SAI-V2 Hybrid Alignment Scoring Engine
-Calculates curriculum-to-industry alignment incorporating:
-- Employer diversity dampener: log2(1+N_postings) * (1+log2(N_employers))
-- Skill importance weights: Core (1.0), Emerging (1.25), Generic (0.30)
-- Skill depth & confidence metrics
-- Explainable sub-scores & evidence strength
+Engine 4: Deterministic SAI-V2 Hybrid Alignment & Skill Gap Analysis Engine
+Zero-API / Zero-LLM Architecture
+
+Fixes applied:
+- I2: Partial credit now requires matching sub-category keyword (not just broad category)
+- D4: top_skill_gaps cap raised from 5 → 15
+- I7: Tier 4 capped to top-50 most-demanded jobs (not all 500)
+- NSQF level bonus weight added per course
 """
 
 import math
 import time
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set, Optional
 from collections import defaultdict
 from sqlalchemy.orm import Session
 from app.db.models import Course, JobPosting, ExtractedSkill, SkillGapAnalysis
 
 logger = logging.getLogger("Engine4_SkillGap")
 
+# Sub-category keyword mapping for precise partial credit (fixes I2)
+# A partial match only earns credit if both skills share an industrial sub-domain keyword
+SUB_CATEGORY_KEYWORDS: Dict[str, Set[str]] = {
+    "Digital & Technology Skills": {
+        "automation", "plc", "scada", "cnc", "python", "sql", "iot", "modbus",
+        "network", "hmi", "robotics", "programming", "software", "linux", "database",
+        "fieldbus", "profinet", "mqtt", "cybersecurity"
+    },
+    "Technical Skills": {
+        "welding", "machining", "turning", "milling", "lathe", "hydraulic",
+        "pneumatic", "wiring", "motor", "transformer", "engine", "refrigeration",
+        "electrical", "piping", "fabrication", "instrumentation", "calibration",
+        "grinding", "hvac", "brazing", "fitting", "drawing", "inspection"
+    },
+    "Emerging Skills": {
+        "solar", "ev", "battery", "bms", "drone", "3d printing", "additive",
+        "robotics", "iot", "renewable", "electric vehicle", "photovoltaic", "lidar"
+    },
+    "Safety Skills": {
+        "safety", "loto", "ppe", "arc flash", "ndt", "quality", "iso", "weld defect"
+    },
+    "Tools & Equipment": {
+        "caliper", "micrometer", "gauge", "hydraulic", "pneumatic", "oscilloscope",
+        "multimeter", "calibrator", "torque wrench", "precision"
+    },
+    "Soft Skills": set(),  # Soft skills never get partial credit across hard skills
+}
+
+
+def _get_sub_domain_keywords(skill_name: str, category: str) -> Set[str]:
+    """Extract sub-domain keywords present in a skill name for cross-match validation."""
+    name_lower = skill_name.lower()
+    domain_set = SUB_CATEGORY_KEYWORDS.get(category, set())
+    return {kw for kw in domain_set if kw in name_lower}
+
+
 class Engine4SkillGapAnalysis:
     def __init__(self, db: Session):
         self.db = db
 
-    def run_analysis(self) -> Dict[str, Any]:
+    def run_analysis(self, target_course_id: Optional[int] = None) -> Dict[str, Any]:
         start_time = time.time()
+        logger.info(
+            f"Starting Engine 4 Skill Gap Analysis (Target: {target_course_id or 'ALL'})..."
+        )
 
-        # Step 1: Bulk fetch courses, job postings, and extracted skills
-        courses = self.db.query(Course).all()
-        job_postings = self.db.query(JobPosting).all()
+        # Step 1: Bulk fetch courses and job postings
+        query_courses = self.db.query(Course)
+        if target_course_id:
+            query_courses = query_courses.filter(Course.id == target_course_id)
+        courses = query_courses.all()
+
+        job_postings = self.db.query(JobPosting).filter(JobPosting.status == "ACTIVE").all()
+        if not job_postings:
+            job_postings = self.db.query(JobPosting).all()
+
         extracted_skills = self.db.query(ExtractedSkill).all()
 
-        total_jobs_in_pool = max(1, len(job_postings))
+        if not courses:
+            return {"status": "SUCCESS", "message": "No courses found for analysis."}
 
-        # Index skills by course_id and job_posting_id
-        course_skills_map = defaultdict(set)
-        course_skill_confidence_map = defaultdict(dict)
-        job_skills_map = defaultdict(list)
+        # Step 2: Index skills by course_id and job_posting_id
+        course_skills_map: Dict[int, Set[str]] = defaultdict(set)
+        course_skill_confidence_map: Dict[int, Dict[str, float]] = defaultdict(dict)
+        course_skill_category_map: Dict[int, Dict[str, str]] = defaultdict(dict)
+        job_skills_map: Dict[int, List[Dict]] = defaultdict(list)
 
         for es in extracted_skills:
             if es.source_type == "COURSE" and es.course_id:
                 course_skills_map[es.course_id].add(es.skill_name)
-                course_skill_confidence_map[es.course_id][es.skill_name] = es.confidence_score or 0.95
+                course_skill_confidence_map[es.course_id][es.skill_name] = (
+                    es.confidence_score or 0.95
+                )
+                course_skill_category_map[es.course_id][es.skill_name] = (
+                    es.category or "Technical Skills"
+                )
             elif es.source_type == "JOB" and es.job_posting_id:
                 job_skills_map[es.job_posting_id].append({
                     "name": es.skill_name,
                     "category": es.category,
-                    "confidence": es.confidence_score or 0.95
+                    "confidence": es.confidence_score or 0.95,
                 })
 
-        # Calculate demand frequencies and employer diversity per skill
-        skill_job_counts = defaultdict(int)
-        skill_employers_map = defaultdict(set)
-        skill_recency_sum = defaultdict(float)
-        skill_category_map = {}
-
+        # Step 3: Pre-index jobs by district and sector in RAM
+        district_jobs_map: Dict[str, List] = defaultdict(list)
+        sector_jobs_map: Dict[str, List] = defaultdict(list)
         for job in job_postings:
-            job_skills = job_skills_map[job.id]
-            seen_in_job = set()
-            for item in job_skills:
-                sname = item["name"]
-                skill_category_map[sname] = item["category"]
-                if sname not in seen_in_job:
-                    seen_in_job.add(sname)
-                    skill_job_counts[sname] += 1
-                    skill_employers_map[sname].add(job.company)
-                    skill_recency_sum[sname] += (job.recency_weight or 1.0)
+            if job.district:
+                district_jobs_map[job.district].append(job)
+            if job.sector:
+                sector_jobs_map[job.sector].append(job)
 
-        # Clear existing analysis table
-        self.db.query(SkillGapAnalysis).delete()
+        # Pre-compute state-wide top-50 most demanded jobs for Tier 4 (fixes I7)
+        # Ranked by recency_weight (highest first) to avoid score dilution from 500 jobs
+        state_top50_jobs = sorted(
+            job_postings,
+            key=lambda j: getattr(j, "recency_weight", 1.0) or 1.0,
+            reverse=True
+        )[:50]
+
+        # Clear existing analysis records
+        if target_course_id:
+            self.db.query(SkillGapAnalysis).filter(
+                SkillGapAnalysis.course_id == target_course_id
+            ).delete()
+        else:
+            self.db.query(SkillGapAnalysis).delete()
         self.db.commit()
 
+        gap_analysis_records = []
         analyses_created = 0
 
+        # Step 4: Analyze each course
         for course in courses:
             c_skills = course_skills_map[course.id]
             c_conf = course_skill_confidence_map[course.id]
+            c_skill_cats = course_skill_category_map[course.id]
 
-            # Filter jobs matching sector or trade
+            # Tiered Job Matching Cascade
             relevant_jobs = [
-                j for j in job_postings
-                if j.district == course.district or j.sector == course.sector or j.relevant_trade == course.title
+                j for j in district_jobs_map[course.district] if j.sector == course.sector
             ]
+            match_tier = "Tier 1: District & Sector Match"
             if not relevant_jobs:
-                relevant_jobs = job_postings  # Fallback to state-wide market pool
+                relevant_jobs = district_jobs_map[course.district]
+                match_tier = "Tier 2: District Match"
+            if not relevant_jobs:
+                relevant_jobs = sector_jobs_map[course.sector]
+                match_tier = "Tier 3: Sector State-Wide Match"
+            if not relevant_jobs:
+                relevant_jobs = state_top50_jobs  # Top-50 only (fixes I7, was all 500)
+                match_tier = "Tier 4: State-Wide Top-50 Market Pool"
 
-            # Re-index regional demand for this course's market pool
-            regional_skill_jobs = defaultdict(int)
-            regional_skill_employers = defaultdict(set)
+            # NSQF level bonus multiplier (higher certification = more rigorous score weighting)
+            nsqf_bonus = 1.0 + ((course.nsqf_level or 4) - 4) * 0.05  # 4→1.0, 5→1.05, 3→0.95
+
+            # Regional Demand Aggregation with Recency Weighting
+            regional_skill_jobs: Dict[str, float] = defaultdict(float)
+            regional_skill_count: Dict[str, int] = defaultdict(int)
+            regional_skill_employers: Dict[str, Set[str]] = defaultdict(set)
+            skill_category_map: Dict[str, str] = {}
 
             for j in relevant_jobs:
+                seen_in_job: Set[str] = set()
+                rec_weight = getattr(j, "recency_weight", 1.0) or 1.0
                 for item in job_skills_map[j.id]:
                     sname = item["name"]
-                    regional_skill_jobs[sname] += 1
-                    regional_skill_employers[sname].add(j.company)
+                    skill_category_map[sname] = item["category"] or "Technical Skills"
+                    if sname not in seen_in_job:
+                        seen_in_job.add(sname)
+                        regional_skill_jobs[sname] += rec_weight
+                        regional_skill_count[sname] += 1
+                        regional_skill_employers[sname].add(
+                            j.company or "MIDC Employer"
+                        )
 
             total_demand_weight = 0.0
             earned_coverage_weight = 0.0
-            
-            exact_match_score = 0.0
-            semantic_match_score = 0.0
-            practical_coverage_score = 0.0
+            exact_earned_weight = 0.0
+            semantic_earned_weight = 0.0
 
             core_demanded_count = 0
             core_covered_count = 0
             emerging_demanded_count = 0
             emerging_covered_count = 0
 
-            fully_covered = []
-            partially_covered = []
-            missing_skills = []
-            demand_freq_map = {}
-            detailed_breakdown = {}
-            top_gaps = []
+            fully_covered: List[str] = []
+            partially_covered: List[str] = []
+            missing_skills: List[str] = []
+            demand_freq_map: Dict[str, str] = {}
+            detailed_breakdown: Dict[str, Any] = {}
+            top_gaps: List[Dict] = []
 
-            for sname, n_postings in regional_skill_jobs.items():
+            for sname, weighted_postings in regional_skill_jobs.items():
+                n_postings = regional_skill_count[sname]
                 cat = skill_category_map.get(sname, "Technical Skills")
                 n_employers = max(1, len(regional_skill_employers[sname]))
 
-                # Logarithmic spam dampener & employer diversity multiplier
-                w_demand = (math.log2(1 + n_postings)) * (1.0 + math.log2(n_employers))
-                
-                # Category importance weight
-                if cat == "Emerging Skills":
+                # HHI employer concentration index (lower = more diverse demand)
+                hhi_index = round(1.0 / n_employers, 3)
+
+                # Logarithmic spam dampener + employer diversity multiplier
+                w_demand = (
+                    math.log2(1 + weighted_postings) * (1.0 + math.log2(n_employers))
+                )
+
+                # Single-job spam penalty
+                if n_postings == 1 and n_employers == 1:
+                    w_demand *= 0.70
+
+                # Category importance weighting
+                if cat == "Safety Skills":
+                    w_importance = 1.50
+                    core_demanded_count += 1
+                elif cat == "Emerging Skills":
                     w_importance = 1.25
                     emerging_demanded_count += 1
                 elif cat in ["Generic Skills", "Soft Skills"]:
                     w_importance = 0.30
+                elif cat == "Digital & Technology Skills":
+                    w_importance = 1.10
+                    core_demanded_count += 1
                 else:
-                    w_importance = 1.0  # Core Trade & Technical Skills
+                    w_importance = 1.0  # Core Technical & Tools
                     core_demanded_count += 1
 
-                step_weight = w_demand * w_importance
+                # Apply NSQF bonus multiplier
+                step_weight = w_demand * w_importance * nsqf_bonus
                 total_demand_weight += step_weight
 
-                demand_pct = round((n_postings / max(1, len(relevant_jobs))) * 100, 1)
-                demand_freq_map[sname] = f"{demand_pct}% ({n_postings} jobs, {n_employers} companies)"
+                demand_pct = round(
+                    (n_postings / max(1, len(relevant_jobs))) * 100, 1
+                )
+                demand_freq_map[sname] = (
+                    f"{demand_pct}% ({n_postings} jobs, {n_employers} companies)"
+                )
 
                 if sname in c_skills:
-                    # Full exact match credit
+                    # Full exact match credit weighted by confidence
                     coverage_credit = 1.0 * c_conf.get(sname, 0.95)
-                    earned_coverage_weight += (step_weight * coverage_credit)
+                    step_earned = step_weight * coverage_credit
+                    earned_coverage_weight += step_earned
+                    exact_earned_weight += step_earned
                     fully_covered.append(sname)
-                    
+
                     if cat == "Emerging Skills":
                         emerging_covered_count += 1
-                    elif cat == "Technical Skills":
+                    elif cat not in ["Generic Skills", "Soft Skills"]:
                         core_covered_count += 1
 
                     detailed_breakdown[sname] = {
                         "status": "FULLY_COVERED",
-                        "demand_weight": round(w_demand, 2),
+                        "demand_weight": round(w_demand, 3),
                         "importance_weight": w_importance,
-                        "coverage_credit": round(coverage_credit, 2),
-                        "employers_count": n_employers
+                        "nsqf_bonus": round(nsqf_bonus, 3),
+                        "coverage_credit": round(coverage_credit, 3),
+                        "employers_count": n_employers,
+                        "hhi_index": hhi_index,
+                        "match_tier": match_tier,
                     }
                 else:
-                    # Check for partial category match
-                    has_partial = any(
-                        skill_category_map.get(cs) == cat for cs in c_skills
-                    )
-                    if has_partial:
-                        coverage_credit = 0.50
-                        earned_coverage_weight += (step_weight * coverage_credit)
+                    # Precise partial credit — must share a specific sub-domain keyword (fixes I2)
+                    # Find sub-domain keywords in the demanded skill
+                    demanded_keywords = _get_sub_domain_keywords(sname, cat)
+
+                    has_precise_partial = False
+                    if demanded_keywords:
+                        for cs in c_skills:
+                            cs_cat = c_skill_cats.get(cs, "")
+                            if cs_cat != cat:
+                                continue  # Must be same broad category first
+                            cs_keywords = _get_sub_domain_keywords(cs, cat)
+                            # Must share at least one sub-domain keyword
+                            if demanded_keywords & cs_keywords:
+                                has_precise_partial = True
+                                break
+
+                    if has_precise_partial:
+                        coverage_credit = 0.40
+                        step_earned = step_weight * coverage_credit
+                        earned_coverage_weight += step_earned
+                        semantic_earned_weight += step_earned
                         partially_covered.append(sname)
                         detailed_breakdown[sname] = {
                             "status": "PARTIALLY_COVERED",
-                            "demand_weight": round(w_demand, 2),
+                            "demand_weight": round(w_demand, 3),
                             "importance_weight": w_importance,
-                            "coverage_credit": 0.50,
-                            "employers_count": n_employers
+                            "nsqf_bonus": round(nsqf_bonus, 3),
+                            "coverage_credit": 0.40,
+                            "employers_count": n_employers,
+                            "hhi_index": hhi_index,
+                            "match_tier": match_tier,
                         }
                     else:
                         missing_skills.append(sname)
                         detailed_breakdown[sname] = {
                             "status": "MISSING",
-                            "demand_weight": round(w_demand, 2),
+                            "demand_weight": round(w_demand, 3),
                             "importance_weight": w_importance,
+                            "nsqf_bonus": round(nsqf_bonus, 3),
                             "coverage_credit": 0.0,
-                            "employers_count": n_employers
+                            "employers_count": n_employers,
+                            "hhi_index": hhi_index,
+                            "match_tier": match_tier,
                         }
+                        severity = (
+                            "CRITICAL" if w_importance >= 1.25 and n_postings >= 2
+                            else ("HIGH" if n_postings >= 2 else "MEDIUM")
+                        )
                         top_gaps.append({
                             "skill": sname,
                             "category": cat,
                             "demand_pct": demand_pct,
                             "job_count": n_postings,
                             "employer_count": n_employers,
-                            "severity": "HIGH" if w_importance >= 1.0 and n_postings > 2 else "MEDIUM"
+                            "severity": severity,
                         })
 
-            # Calculate final alignment percentage (0 to 100%)
+            # Final alignment score (0–100)
             final_alignment_score = 0.0
             if total_demand_weight > 0:
-                final_alignment_score = round((earned_coverage_weight / total_demand_weight) * 100, 1)
+                final_alignment_score = round(
+                    (earned_coverage_weight / total_demand_weight) * 100, 1
+                )
 
-            core_cov_pct = round((core_covered_count / max(1, core_demanded_count)) * 100, 1)
-            emerging_cov_pct = round((emerging_covered_count / max(1, emerging_demanded_count)) * 100, 1)
+            # Core & Emerging coverage percentages
+            core_cov_pct = (
+                100.0 if core_demanded_count == 0
+                else round((core_covered_count / core_demanded_count) * 100, 1)
+            )
+            emerging_cov_pct = (
+                100.0 if emerging_demanded_count == 0
+                else round((emerging_covered_count / emerging_demanded_count) * 100, 1)
+            )
 
-            # Sort top gaps by severity and job count
-            top_gaps.sort(key=lambda x: x["job_count"], reverse=True)
+            # Sort gaps by severity + employer volume
+            top_gaps.sort(key=lambda x: (x["job_count"], x["employer_count"]), reverse=True)
 
             gap_record = SkillGapAnalysis(
                 course_id=course.id,
@@ -210,19 +349,26 @@ class Engine4SkillGapAnalysis:
                 missing_skills=missing_skills,
                 demand_frequency_map=demand_freq_map,
                 detailed_skills_breakdown=detailed_breakdown,
-                top_skill_gaps=top_gaps[:5],
-                execution_latency_ms=round((time.time() - start_time) * 1000, 2)
+                top_skill_gaps=top_gaps[:15],  # Raised from 5 → 15 (fixes D4)
+                execution_latency_ms=round((time.time() - start_time) * 1000, 2),
             )
-            self.db.add(gap_record)
+            gap_analysis_records.append(gap_record)
             analyses_created += 1
 
-        self.db.commit()
+        # High-Performance Bulk DB Save
+        if gap_analysis_records:
+            self.db.bulk_save_objects(gap_analysis_records)
+            self.db.commit()
+
         latency = round((time.time() - start_time) * 1000, 2)
+        logger.info(
+            f"Engine 4 analysis completed: {analyses_created} courses analyzed in {latency}ms."
+        )
 
         return {
             "status": "SUCCESS",
             "courses_analyzed": len(courses),
             "jobs_analyzed": len(job_postings),
             "analyses_created": analyses_created,
-            "latency_ms": latency
+            "latency_ms": latency,
         }

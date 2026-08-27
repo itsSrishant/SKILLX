@@ -2,7 +2,9 @@ import time
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import Dict, List, Any
+from sqlalchemy import func
+from collections import defaultdict
+from typing import Dict, List, Any, Optional
 
 from app.config import settings
 from app.db.database import engine, Base, get_db
@@ -42,9 +44,9 @@ pipeline_state = {
 ESTIMATED_LATENCY_CONFIG = {
     "engine1": {"name": "Engine 1: Course Ingestion", "estimated_sec": 0.35},
     "engine2": {"name": "Engine 2: Job Ingestion", "estimated_sec": 0.40},
-    "engine3": {"name": "Engine 3: Skill Extraction & Normalization", "estimated_sec": 0.03},
-    "engine4": {"name": "Engine 4: 3-Tier Skill Gap Analysis", "estimated_sec": 0.02},
-    "total_pipeline_estimated_sec": 0.80
+    "engine3": {"name": "Engine 3: Skill Extraction & Normalization", "estimated_sec": 0.50},
+    "engine4": {"name": "Engine 4: 3-Tier Skill Gap Analysis", "estimated_sec": 0.30},
+    "total_pipeline_estimated_sec": 1.55
 }
 
 @app.get("/")
@@ -63,26 +65,31 @@ def health_check():
 @app.get("/api/v1/metrics/overview")
 def get_overview_metrics(db: Session = Depends(get_db)):
     total_courses = db.query(Course).filter(Course.status == "ACTIVE").count()
+    iti_courses = db.query(Course).filter(Course.status == "ACTIVE", Course.institute_type == "ITI").count()
+    mssds_courses = db.query(Course).filter(Course.status == "ACTIVE", Course.institute_type == "MSSDS").count()
+
     total_jobs = db.query(JobPosting).filter(JobPosting.status == "ACTIVE").count()
     total_skills = db.query(ExtractedSkill).count()
     candidate_unknown_count = db.query(ExtractedSkill).filter(ExtractedSkill.status == "CANDIDATE_UNKNOWN").count()
-    
+
     gap_records = db.query(SkillGapAnalysis).all()
-    avg_score = round(sum(r.alignment_score for r in gap_records) / len(gap_records), 1) if gap_records else 0.0
-    
+    avg_score = round(sum(r.alignment_score for r in gap_records) / len(gap_records)) if gap_records else 0
+
     district_scores: Dict[str, List[float]] = {}
     for r in gap_records:
         district_scores.setdefault(r.district, []).append(r.alignment_score)
-    
-    high_deficit_districts = sum(1 for d, scores in district_scores.items() if (sum(scores)/len(scores)) < 75.0)
+
+    high_deficit_districts = sum(
+        1 for d, scores in district_scores.items()
+        if (sum(scores) / len(scores)) < 75.0
+    )
 
     return {
         "total_courses": total_courses,
-        "dvet_iti_trades_catalog": 85,
-        "dvet_total_itis": "1,004 (419 Govt + 585 Private)",
-        "dvet_seat_capacity": "2.43 Lakh Intake Seats",
-        "mssds_course_master_catalog": "1,200+ Short-Term Entries",
-        "mssds_training_centers": "2,152 Centres • 7,151 Active Batches",
+        "total_catalogue_courses": total_courses,
+        "remaining_in_catalogue": max(0, 547 - total_courses),
+        "iti_courses_count": iti_courses,
+        "mssds_courses_count": mssds_courses,
         "total_relevant_jobs": total_jobs,
         "total_skills_extracted": total_skills,
         "candidate_unknown_skills_count": candidate_unknown_count,
@@ -125,21 +132,20 @@ def get_latency_estimates():
 @app.post("/api/v1/engines/run-batch")
 def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
     """
-    Ingest and analyze a batch of N new real courses and jobs into SQLite DB.
-    Inserts N real new Course, JobPosting, ExtractedSkill, and SkillGapAnalysis database records.
+    Ingest and analyze a batch of N new courses and jobs into the SQLite DB.
     """
     global pipeline_state
     pipeline_start = time.time()
-    
+
     try:
         e1 = Engine1CourseIngestion(db).run_ingestion(limit=batch_size)
         e2 = Engine2JobIngestion(db).run_ingestion(limit=batch_size)
         e3 = Engine3SkillExtraction(db).run_extraction()
         e4 = Engine4SkillGapAnalysis(db).run_analysis()
-        
+
         pipeline_end = time.time()
         total_latency_ms = round((pipeline_end - pipeline_start) * 1000, 2)
-        
+
         total_courses_db = db.query(Course).filter(Course.status == "ACTIVE").count()
         total_jobs_db = db.query(JobPosting).filter(JobPosting.status == "ACTIVE").count()
         remaining_courses = max(0, 547 - total_courses_db)
@@ -167,29 +173,29 @@ def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
 def run_all_engines(db: Session = Depends(get_db)):
     global pipeline_state
     pipeline_start = time.time()
-    
+
     pipeline_state["is_running"] = True
     pipeline_state["progress_percentage"] = 10
     pipeline_state["elapsed_seconds"] = 0.0
     pipeline_state["estimated_time_remaining_seconds"] = ESTIMATED_LATENCY_CONFIG["total_pipeline_estimated_sec"]
 
     try:
-        pipeline_state["current_engine"] = "Engine 1: Ingesting DVET 85 Trades & MSSDS Master (SHA-256 Hashes)..."
+        pipeline_state["current_engine"] = "Engine 1: Ingesting DVET 85 Trades & MSSDS Master (District-Specialised)..."
         pipeline_state["progress_percentage"] = 25
         e1 = Engine1CourseIngestion(db).run_ingestion(limit=50)
-        
-        pipeline_state["current_engine"] = "Engine 2: Ingesting Job Postings (Job ID Deduplication & Status Tracking)..."
-        pipeline_state["progress_percentage"] = 55
+
+        pipeline_state["current_engine"] = "Engine 2: Ingesting Job Postings (Trade-Realistic Recency Weights)..."
+        pipeline_state["progress_percentage"] = 50
         e2 = Engine2JobIngestion(db).run_ingestion()
-        
-        pipeline_state["current_engine"] = "Engine 3: Central Skill Dictionary Normalization & Candidate Detection..."
-        pipeline_state["progress_percentage"] = 80
+
+        pipeline_state["current_engine"] = "Engine 3: Skill Extraction, Synonym Normalization & N-Gram Discovery..."
+        pipeline_state["progress_percentage"] = 75
         e3 = Engine3SkillExtraction(db).run_extraction()
-        
-        pipeline_state["current_engine"] = "Engine 4: 3-Tier Skill Gap & Demand Weighting Engine..."
+
+        pipeline_state["current_engine"] = "Engine 4: SAI-V2 Skill Gap Analysis (Sub-Domain Partial Credit)..."
         pipeline_state["progress_percentage"] = 95
         e4 = Engine4SkillGapAnalysis(db).run_analysis()
-        
+
         pipeline_end = time.time()
         total_latency_ms = round((pipeline_end - pipeline_start) * 1000, 2)
         total_latency_sec = round(total_latency_ms / 1000, 3)
@@ -199,7 +205,7 @@ def run_all_engines(db: Session = Depends(get_db)):
         pipeline_state["progress_percentage"] = 100
         pipeline_state["elapsed_seconds"] = total_latency_sec
         pipeline_state["estimated_time_remaining_seconds"] = 0.0
-        
+
         summary = {
             "status": "SUCCESS",
             "total_latency_ms": total_latency_ms,
@@ -218,13 +224,25 @@ def run_all_engines(db: Session = Depends(get_db)):
 
 @app.get("/api/v1/courses")
 def get_courses(db: Session = Depends(get_db)):
+    """
+    Return all courses with their extracted skills.
+    Fix I4: Uses a single bulk query instead of N+1 individual queries.
+    """
     courses = db.query(Course).all()
+
+    # Bulk fetch all course skills in ONE query (fixes I4 — no more N+1)
+    all_course_skills = db.query(ExtractedSkill).filter(
+        ExtractedSkill.source_type == "COURSE"
+    ).all()
+
+    # Index by course_id in RAM
+    skills_by_course: Dict[int, List[str]] = defaultdict(list)
+    for s in all_course_skills:
+        if s.course_id:
+            skills_by_course[s.course_id].append(s.skill_name)
+
     result = []
     for c in courses:
-        skills = db.query(ExtractedSkill).filter(
-            ExtractedSkill.course_id == c.id,
-            ExtractedSkill.source_type == "COURSE"
-        ).all()
         result.append({
             "id": c.id,
             "code": c.code,
@@ -240,16 +258,20 @@ def get_courses(db: Session = Depends(get_db)):
             "district": c.district,
             "status": c.status,
             "syllabus_text": c.syllabus_text,
-            "extracted_skills": [s.skill_name for s in skills]
+            "extracted_skills": skills_by_course[c.id]
         })
     return result
 
 @app.get("/api/v1/analytics/gap-analysis")
 def get_gap_analysis(db: Session = Depends(get_db)):
     gap_records = db.query(SkillGapAnalysis).all()
+
+    # Bulk fetch all courses in ONE query
+    course_map: Dict[int, Course] = {c.id: c for c in db.query(Course).all()}
+
     result = []
     for r in gap_records:
-        course = db.query(Course).filter(Course.id == r.course_id).first()
+        course = course_map.get(r.course_id)
         result.append({
             "id": r.id,
             "course_id": r.course_id,
@@ -271,33 +293,113 @@ def get_gap_analysis(db: Session = Depends(get_db)):
         })
     return result
 
+@app.get("/api/v1/analytics/gap-analysis/top-deficits")
+def get_top_skill_deficits(limit: int = 10, db: Session = Depends(get_db)):
+    """
+    Aggregate the top missing skills state-wide from live DB data.
+    Used by the dashboard to replace hardcoded deficit cards (fixes D8).
+    """
+    gap_records = db.query(SkillGapAnalysis).all()
+
+    skill_job_counts: Dict[str, int] = defaultdict(int)
+    skill_employer_counts: Dict[str, set] = defaultdict(set)
+    skill_categories: Dict[str, str] = defaultdict(lambda: "Technical Skills")
+    total_courses = max(1, len(gap_records))
+
+    for gap in gap_records:
+        for gap_item in (gap.top_skill_gaps or []):
+            skill = gap_item.get("skill", "")
+            if not skill:
+                continue
+            skill_job_counts[skill] += gap_item.get("job_count", 1)
+            skill_categories[skill] = gap_item.get("category", "Technical Skills")
+            # Estimate unique employers from employer_count field
+            for i in range(gap_item.get("employer_count", 1)):
+                skill_employer_counts[skill].add(f"employer_{i}")
+
+    # Sort by frequency across all gap analyses
+    sorted_deficits = sorted(
+        skill_job_counts.items(), key=lambda x: x[1], reverse=True
+    )[:limit]
+
+    return [
+        {
+            "skill": skill,
+            "category": skill_categories[skill],
+            "total_job_occurrences": count,
+            "unique_employer_count": len(skill_employer_counts[skill]),
+            "demand_pct": round((count / total_courses) * 100, 1),
+        }
+        for skill, count in sorted_deficits
+    ]
+
 @app.get("/api/v1/analytics/district-summary")
 def get_district_summary(db: Session = Depends(get_db)):
-    districts = ["Pune", "Nashik", "Thane", "Nagpur", "Chhatrapati Sambhajinagar"]
+    """
+    Returns summary for ALL districts with active courses in DB.
+    Fix D6: no longer hardcoded to only 5 districts.
+    """
+    # Get all distinct districts from DB dynamically
+    distinct_districts = [
+        row[0] for row in
+        db.query(Course.district).filter(Course.status == "ACTIVE").distinct().all()
+        if row[0]
+    ]
+
+    # Bulk fetch all courses, jobs, and gap records in 3 queries total
+    all_courses = db.query(Course).filter(Course.status == "ACTIVE").all()
+    all_jobs = db.query(JobPosting).filter(JobPosting.status == "ACTIVE").all()
+    all_gaps = db.query(SkillGapAnalysis).all()
+
+    # Index into dicts
+    courses_by_district: Dict[str, List] = defaultdict(list)
+    for c in all_courses:
+        if c.district:
+            courses_by_district[c.district].append(c)
+
+    jobs_by_district: Dict[str, List] = defaultdict(list)
+    for j in all_jobs:
+        if j.district:
+            jobs_by_district[j.district].append(j)
+
+    gaps_by_district: Dict[str, List] = defaultdict(list)
+    for g in all_gaps:
+        if g.district:
+            gaps_by_district[g.district].append(g)
+
     summary = []
-    
-    for dist in districts:
-        courses = db.query(Course).filter(Course.district == dist, Course.status == "ACTIVE").all()
-        jobs = db.query(JobPosting).filter(JobPosting.district == dist, JobPosting.status == "ACTIVE").all()
-        gaps = db.query(SkillGapAnalysis).filter(SkillGapAnalysis.district == dist).all()
-        
-        avg_score = round(sum(g.alignment_score for g in gaps) / len(gaps), 1) if gaps else 80.0
-        
-        missing_pool = []
+    for dist in sorted(distinct_districts):
+        gaps = gaps_by_district[dist]
+        avg_score = (
+            round(sum(g.alignment_score for g in gaps) / len(gaps), 1)
+            if gaps else 0.0
+        )
+
+        # Aggregate top missing skills for this district
+        missing_pool: List[str] = []
         for g in gaps:
             missing_pool.extend(g.missing_skills or [])
-        
-        top_missing = list(set(missing_pool))[:4]
-        
+
+        # Count frequency to get most-common missing skills
+        freq: Dict[str, int] = defaultdict(int)
+        for s in missing_pool:
+            freq[s] += 1
+        top_missing = [
+            s for s, _ in sorted(freq.items(), key=lambda x: x[1], reverse=True)
+        ][:4]
+
         summary.append({
             "district": dist,
-            "active_courses": len(courses),
-            "relevant_jobs": len(jobs),
+            "active_courses": len(courses_by_district[dist]),
+            "relevant_jobs": len(jobs_by_district[dist]),
             "avg_alignment_score": avg_score,
             "top_missing_skills": top_missing,
-            "deficit_status": "HIGH DEFICIT" if avg_score < 75.0 else ("MODERATE" if avg_score < 85.0 else "ALIGNED")
+            "deficit_status": (
+                "HIGH DEFICIT" if avg_score < 65.0
+                else ("MODERATE" if avg_score < 80.0 else "ALIGNED")
+            )
         })
-        
+
     return summary
 
 # ─── Phase 3: LLM Bridge Pack Routes ──────────────────────────────────────────
@@ -342,14 +444,20 @@ def get_all_bridge_packs(db: Session = Depends(get_db)):
         for p in packs
     ]
 
+# ─── Engine 3 Admin: Rebuild Index ────────────────────────────────────────────
+
+@app.post("/api/v1/admin/rebuild-skill-index")
+def rebuild_skill_index(db: Session = Depends(get_db)):
+    """Hot-reload Engine 3's in-memory regex index after dictionary changes (fixes I5)."""
+    e3 = Engine3SkillExtraction(db)
+    e3.rebuild_index()
+    return {"status": "SUCCESS", "message": "Engine 3 skill index rebuilt successfully."}
+
 # ─── Async Crawler Routes ──────────────────────────────────────────────────────
 
 @app.post("/api/v1/crawler/trigger")
 async def trigger_full_crawl():
-    """
-    Trigger a full async crawl of all 85 DVET ITI Trades + MSSDS catalogue.
-    Runs in async batches with polite rate limiting.
-    """
+    """Trigger a full async crawl of all DVET ITI Trades + MSSDS catalogue."""
     result = await run_full_async_crawl(batch_size=10, delay_between_batches_sec=0.1)
     return result
 
@@ -361,7 +469,11 @@ def get_crawl_status():
 # ─── Student Portal API Routes ─────────────────────────────────────────────────
 
 @app.get("/api/v1/student/recommendations")
-def get_student_recommendations(district: str = "Pune", sector: str = None, db: Session = Depends(get_db)):
+def get_student_recommendations(
+    district: str = "Pune",
+    sector: str = None,
+    db: Session = Depends(get_db)
+):
     """
     Student Portal: Return recommended courses + gap analysis + bridge packs
     filtered by district and optional sector.
@@ -373,8 +485,12 @@ def get_student_recommendations(district: str = "Pune", sector: str = None, db: 
 
     recommendations = []
     for course in courses:
-        gap = db.query(SkillGapAnalysis).filter(SkillGapAnalysis.course_id == course.id).first()
-        packs = db.query(BridgePackRecommendation).filter(BridgePackRecommendation.course_id == course.id).all()
+        gap = db.query(SkillGapAnalysis).filter(
+            SkillGapAnalysis.course_id == course.id
+        ).first()
+        packs = db.query(BridgePackRecommendation).filter(
+            BridgePackRecommendation.course_id == course.id
+        ).all()
 
         recommendations.append({
             "course_id": course.id,
@@ -394,7 +510,7 @@ def get_student_recommendations(district: str = "Pune", sector: str = None, db: 
                     "module_title": p.module_title,
                     "skill_targeted": p.skill_targeted,
                     "duration_hours": p.duration_hours,
-                    "activities": p.activities[:2],  # Preview first 2 activities
+                    "activities": p.activities[:2],
                 }
                 for p in packs
             ]
@@ -410,11 +526,21 @@ def get_student_recommendations(district: str = "Pune", sector: str = None, db: 
 @app.get("/api/v1/student/districts")
 def get_available_districts(db: Session = Depends(get_db)):
     """Return list of all districts with active courses."""
-    districts = db.query(Course.district).filter(Course.status == "ACTIVE").distinct().all()
-    return {"districts": [d[0] for d in districts if d[0]]}
+    districts = (
+        db.query(Course.district)
+        .filter(Course.status == "ACTIVE")
+        .distinct()
+        .all()
+    )
+    return {"districts": sorted([d[0] for d in districts if d[0]])}
 
 @app.get("/api/v1/student/sectors")
 def get_available_sectors(db: Session = Depends(get_db)):
     """Return list of all sectors with active courses."""
-    sectors = db.query(Course.sector).filter(Course.status == "ACTIVE").distinct().all()
-    return {"sectors": [s[0] for s in sectors if s[0]]}
+    sectors = (
+        db.query(Course.sector)
+        .filter(Course.status == "ACTIVE")
+        .distinct()
+        .all()
+    )
+    return {"sectors": sorted([s[0] for s in sectors if s[0]])}
