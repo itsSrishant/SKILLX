@@ -72,7 +72,7 @@ const STEPS = [
   },
 ];
 
-// ── ROYAL INDIAN ELEGANT LUXURY JAALI LATTICE SVG PATTERN ───────────────────
+// ── INTENSE IMPERIAL INDIAN JAALI LATTICE SVG PATTERN + VIVID TRI-GRADIENT ──
 function RoyalTajMahalJaaliBackground() {
   return (
     <div
@@ -85,35 +85,39 @@ function RoyalTajMahalJaaliBackground() {
         background: `
           linear-gradient(
             180deg,
-            rgba(30, 58, 138, 0.18) 0%,
-            rgba(224, 242, 254, 0.40) 20%,
-            #ffffff 50%,
-            #fff7ed 80%,
-            rgba(249, 115, 22, 0.18) 100%
+            rgba(30, 58, 138, 0.42) 0%,
+            rgba(186, 230, 253, 0.65) 18%,
+            #ffffff 48%,
+            #ffedd5 80%,
+            rgba(249, 115, 22, 0.45) 100%
           )
         `,
       }}
     >
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          {/* Royal Taj Mahal Elegant Marble Inlay / Delicate Jaali Lattice */}
-          <pattern id="tajJaaliPattern" width="80" height="80" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 80 40 L 40 80 L 0 40 Z" fill="none" stroke="rgba(30,32,51,0.035)" strokeWidth="0.6" />
-            <path d="M 40 16 L 64 40 L 40 64 L 16 40 Z" fill="none" stroke="rgba(249,115,22,0.035)" strokeWidth="0.6" />
-            <circle cx="40" cy="40" r="8" fill="none" stroke="rgba(30,32,51,0.03)" strokeWidth="0.5" />
-            <path d="M 0 0 L 20 20 M 80 0 L 60 20 M 80 80 L 60 60 M 0 80 L 20 60" stroke="rgba(30,32,51,0.025)" strokeWidth="0.5" />
+          {/* Imperial Indian Geometric Starburst Jaali Pattern (Fine-Tuned Intensity) */}
+          <pattern id="strikingJaaliPattern" width="70" height="70" patternUnits="userSpaceOnUse">
+            {/* Outer Diamond Lattice */}
+            <path d="M 35 0 L 70 35 L 35 70 L 0 35 Z" fill="none" stroke="rgba(30,32,51,0.075)" strokeWidth="1" />
+            {/* Inner Octagonal Arch Starburst */}
+            <path d="M 35 12 L 51 19 L 58 35 L 51 51 L 35 58 L 19 51 L 12 35 L 19 19 Z" fill="none" stroke="rgba(249,115,22,0.085)" strokeWidth="0.9" />
+            {/* Central Floral Rosette Circle */}
+            <circle cx="35" cy="35" r="6" fill="none" stroke="rgba(30,32,51,0.065)" strokeWidth="0.8" />
+            {/* Corner Filigree Crosses */}
+            <path d="M 0 0 L 15 15 M 70 0 L 55 15 M 70 70 L 55 55 M 0 70 L 15 55" stroke="rgba(30,32,51,0.055)" strokeWidth="0.8" />
           </pattern>
           {/* Vivid Ambient Radial Glows */}
           <radialGradient id="heroTopBlueGlow" cx="50%" cy="10%" r="60%">
-            <stop offset="0%" stopColor="rgba(37,99,235,0.22)" />
+            <stop offset="0%" stopColor="rgba(37,99,235,0.40)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </radialGradient>
           <radialGradient id="heroOrangeGlow" cx="50%" cy="85%" r="65%">
-            <stop offset="0%" stopColor="rgba(249,115,22,0.25)" />
+            <stop offset="0%" stopColor="rgba(249,115,22,0.45)" />
             <stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </radialGradient>
         </defs>
-        <rect width="100%" height="100%" fill="url(#tajJaaliPattern)" />
+        <rect width="100%" height="100%" fill="url(#strikingJaaliPattern)" />
         <rect width="100%" height="100%" fill="url(#heroTopBlueGlow)" />
         <rect width="100%" height="100%" fill="url(#heroOrangeGlow)" />
       </svg>
@@ -338,14 +342,14 @@ export default function LandingPage() {
 
         <div ref={heroRef} style={{ position: "relative", zIndex: 2, maxWidth: 960, margin: "0 auto", padding: "0 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
           
-          {/* H1 Headline — Centered in Orange & Pure White styling */}
+          {/* H1 Headline — Clean Vector Typography (High Contrast #0F172A) */}
           <h1 style={{
             fontFamily: "'Playfair Display', Georgia, serif",
             fontSize: "clamp(42px, 5.8vw, 70px)",
             fontWeight: 700,
             lineHeight: 1.15,
             letterSpacing: "-0.02em",
-            marginBottom: 28,
+            marginBottom: 24,
           }}>
             <span style={{
               background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
@@ -356,10 +360,7 @@ export default function LandingPage() {
               Where Maharashtra’s Skills
             </span>
             <br />
-            <span style={{
-              color: "#ffffff",
-              textShadow: "0 2px 10px rgba(15,23,42,0.4), 0 1px 3px rgba(0,0,0,0.6)",
-            }}>
+            <span style={{ color: "#0f172a" }}>
               Meet Industry Demand
             </span>
           </h1>

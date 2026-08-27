@@ -122,6 +122,42 @@ def get_latency_estimates():
         "current_state": pipeline_state
     }
 
+@app.post("/api/v1/engines/run-batch")
+def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
+    """
+    Ingest and analyze a batch of 50 new real courses from the master catalogue into SQLite DB.
+    Inserts 50 real new Course, ExtractedSkill, and SkillGapAnalysis database records.
+    """
+    global pipeline_state
+    pipeline_start = time.time()
+    
+    try:
+        e1 = Engine1CourseIngestion(db).run_ingestion(limit=batch_size)
+        e2 = Engine2JobIngestion(db).run_ingestion()
+        e3 = Engine3SkillExtraction(db).run_extraction()
+        e4 = Engine4SkillGapAnalysis(db).run_analysis()
+        
+        pipeline_end = time.time()
+        total_latency_ms = round((pipeline_end - pipeline_start) * 1000, 2)
+        
+        total_courses_db = db.query(Course).filter(Course.status == "ACTIVE").count()
+        remaining_in_catalogue = max(0, 547 - total_courses_db)
+
+        return {
+            "status": "SUCCESS",
+            "batch_size": batch_size,
+            "courses_added_in_batch": e1.get("courses_added", 0),
+            "total_courses_in_db": total_courses_db,
+            "remaining_in_catalogue": remaining_in_catalogue,
+            "total_latency_ms": total_latency_ms,
+            "engine1": e1,
+            "engine2": e2,
+            "engine3": e3,
+            "engine4": e4
+        }
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
 @app.post("/api/v1/engines/run-all")
 def run_all_engines(db: Session = Depends(get_db)):
     global pipeline_state
@@ -135,7 +171,7 @@ def run_all_engines(db: Session = Depends(get_db)):
     try:
         pipeline_state["current_engine"] = "Engine 1: Ingesting DVET 85 Trades & MSSDS Master (SHA-256 Hashes)..."
         pipeline_state["progress_percentage"] = 25
-        e1 = Engine1CourseIngestion(db).run_ingestion()
+        e1 = Engine1CourseIngestion(db).run_ingestion(limit=50)
         
         pipeline_state["current_engine"] = "Engine 2: Ingesting Job Postings (Job ID Deduplication & Status Tracking)..."
         pipeline_state["progress_percentage"] = 55
