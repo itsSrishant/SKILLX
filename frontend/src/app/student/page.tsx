@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { LangProvider, useLang } from "@/lib/i18n";
+import { FREE_COURSES, type FreeCourse, getFreeCoursesByDistrict, PLATFORM_COLORS } from "./data/free-courses";
 
 // ── API base (auto-detect localhost vs production) ────────────────────────────
 const API =
@@ -1198,6 +1199,129 @@ function ChatAssistant({ district }: { district: string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// FREE COURSE CARD (NPTEL / Coursera / Swayam / Google)
+// ──────────────────────────────────────────────────────────────────────────────
+function FreeCourseCard({ course, index }: { course: FreeCourse; index: number }) {
+  const [hovered, setHovered] = useState(false);
+  const pc = PLATFORM_COLORS[course.platform];
+  const score = course.alignment_score;
+  const borderColor = score >= 85 ? C.green : score >= 75 ? C.orange : C.textMuted;
+
+  return (
+    <a
+      href={course.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", flexDirection: "column",
+        background: C.card, borderRadius: 16,
+        border: `1px solid ${hovered ? "rgba(0,0,0,0.10)" : C.border}`,
+        borderTop: `3px solid ${borderColor}`,
+        padding: 20, textDecoration: "none", color: "inherit",
+        boxShadow: hovered ? "0 8px 28px rgba(0,0,0,0.08)" : "0 1px 3px rgba(0,0,0,0.03)",
+        transform: hovered ? "translateY(-3px)" : "none",
+        transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+        animation: `fadeInUp 0.5s ease ${Math.min(index * 0.06, 0.5)}s both`,
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {/* Platform badge */}
+          <span style={{
+            fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 999,
+            background: pc.bg, color: pc.color, border: `1px solid ${pc.border}`,
+            letterSpacing: "0.06em",
+          }}>{course.platform}</span>
+          {/* Certificate badge */}
+          {course.certificate && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 999,
+              background: C.greenLight, color: C.green, border: `1px solid ${C.greenMid}`,
+            }}>🎓 Certificate</span>
+          )}
+          {/* Free badge */}
+          <span style={{
+            fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 999,
+            background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0",
+          }}>FREE</span>
+        </div>
+        {/* Alignment ring */}
+        <AlignmentRing score={score} size={52} />
+      </div>
+
+      {/* Title */}
+      <div style={{
+        fontFamily: "'Playfair Display', serif",
+        fontSize: 15, fontWeight: 700, color: C.text,
+        marginBottom: 4, lineHeight: 1.35,
+      }}>{course.title}</div>
+
+      {/* Provider */}
+      <div style={{ fontSize: 11, color: pc.color, fontWeight: 700, marginBottom: 4 }}>
+        {course.provider}
+      </div>
+
+      {/* Meta row */}
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <span>⏱ {course.duration_weeks}wk · {course.duration_hours}h</span>
+        <span>📶 NSQF ~{course.nsqf_equivalent}</span>
+        <span>🌐 {course.delivery_mode}</span>
+      </div>
+
+      {/* Description */}
+      <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.55, marginBottom: 12, flexGrow: 1 }}>
+        {course.description}
+      </div>
+
+      {/* Skills covered */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 5 }}>
+          Skills Covered ({course.fully_covered_skills.length}):
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {course.fully_covered_skills.slice(0, 4).map(s => (
+            <SkillBadge key={s} skill={s} type="mastered" />
+          ))}
+          {course.fully_covered_skills.length > 4 && (
+            <span style={{ fontSize: 10, color: C.textMuted, padding: "2px 0" }}>
+              +{course.fully_covered_skills.length - 4} more
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Languages */}
+      <div style={{ fontSize: 11, color: C.textSub, marginBottom: 14 }}>
+        🗣 Available in: {course.language.join(", ")}
+      </div>
+
+      {/* Footer CTA */}
+      <div style={{
+        borderTop: `1px solid ${C.border}`, paddingTop: 14,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <div style={{ fontSize: 11, color: C.textMuted }}>
+          {course.applicable_districts === "All Districts"
+            ? "📍 Available in all 36 districts"
+            : `📍 Best for: ${Array.isArray(course.applicable_districts) ? course.applicable_districts.slice(0, 2).join(", ") : ""}`}
+        </div>
+        <span style={{
+          padding: "7px 16px", borderRadius: 10,
+          background: `linear-gradient(135deg, ${pc.color}, ${pc.color}cc)`,
+          color: "white", fontSize: 12, fontWeight: 700,
+          boxShadow: `0 3px 10px ${pc.color}30`,
+        }}>
+          Open Course →
+        </span>
+      </div>
+    </a>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // EMPTY STATE
 // ──────────────────────────────────────────────────────────────────────────────
 function EmptyState({ district, onClear }: { district: string; onClear: () => void }) {
@@ -1267,6 +1391,7 @@ function StudentInner() {
 
   // — Scroll state
   const [scrolled, setScrolled] = useState(false);
+  const [courseTab, setCourseTab] = useState<"iti" | "free">("iti");
 
   // ── Load profile from localStorage ──────────────────────────────────────────
   useEffect(() => {
@@ -1776,27 +1901,109 @@ function StudentInner() {
           </div>
         )}
 
-        {/* ── Course Grid ───────────────────────────────────────────────────────── */}
-        {!loading && !error && sorted.length === 0 && (
-          <EmptyState district={selectedDistrict} onClear={() => {
-            setSelectedSectors([]);
-            setSearch("");
-          }} />
-        )}
+        {/* ── Course Tabs (ITI/MSSDS + Free Online) ─────────────────────────── */}
+        {!loading && !error && (
+          <div style={{ marginBottom: 24 }}>
+            {/* Tab switcher */}
+            <div style={{ display: "flex", gap: 0, marginBottom: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${C.border}`, background: C.card, width: "fit-content" }}>
+              {[
+                { id: "iti",  label: `🏫 ITI & MSSDS Courses`, count: sorted.length },
+                { id: "free", label: `🎓 Free Online Courses`, count: getFreeCoursesByDistrict(selectedDistrict).length },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setCourseTab(tab.id as "iti" | "free")} style={{
+                  padding: "10px 20px", border: "none", cursor: "pointer", fontSize: 13,
+                  fontWeight: courseTab === tab.id ? 800 : 500,
+                  background: courseTab === tab.id
+                    ? `linear-gradient(135deg, ${C.slate900}, ${C.slate800})`
+                    : "transparent",
+                  color: courseTab === tab.id ? "white" : C.textSub,
+                  transition: "all 0.2s",
+                }}>
+                  {tab.label}
+                  <span style={{
+                    marginLeft: 6, padding: "1px 7px", borderRadius: 999, fontSize: 10, fontWeight: 800,
+                    background: courseTab === tab.id ? "rgba(255,255,255,0.20)" : C.border,
+                    color: courseTab === tab.id ? "white" : C.textSub,
+                  }}>{tab.count}</span>
+                </button>
+              ))}
+            </div>
 
-        {!loading && !error && sorted.length > 0 && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
-            gap: 20,
-          }}>
-            {sorted.map((course, i) => (
-              <div key={course.course_id} style={{
-                animation: `fadeInUp 0.5s ease ${Math.min(i * 0.06, 0.5)}s both`,
-              }}>
-                <CourseCard course={course} onViewUpgrade={openUpgradeModal} />
-              </div>
-            ))}
+            {/* ── TAB 1: ITI/MSSDS Courses ─── */}
+            {courseTab === "iti" && (
+              <>
+                {sorted.length === 0 ? (
+                  <EmptyState district={selectedDistrict} onClear={() => {
+                    setSelectedSectors([]);
+                    setSearch("");
+                  }} />
+                ) : (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
+                    gap: 20,
+                  }}>
+                    {sorted.map((course, i) => (
+                      <div key={course.course_id} style={{
+                        animation: `fadeInUp 0.5s ease ${Math.min(i * 0.06, 0.5)}s both`,
+                      }}>
+                        <CourseCard course={course} onViewUpgrade={openUpgradeModal} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── TAB 2: Free Online Courses (NPTEL / Coursera / Swayam) ─── */}
+            {courseTab === "free" && (
+              <>
+                <div style={{
+                  background: C.greenLight, borderRadius: 12, padding: "12px 16px",
+                  border: `1px solid ${C.greenMid}`, marginBottom: 20,
+                  display: "flex", alignItems: "center", gap: 10,
+                }}>
+                  <span style={{ fontSize: 18 }}>💡</span>
+                  <div style={{ fontSize: 12, color: "#166534" }}>
+                    <strong>All courses below are 100% free</strong> (or free to audit). Sources: NPTEL (IITs), Swayam (Government of India), Coursera (Audit Mode), Google Digital Garage.
+                    NPTEL courses offer official certificates upon exam completion.
+                  </div>
+                </div>
+
+                {/* Platform legend */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  {(["NPTEL", "Coursera", "Swayam", "Google"] as const).map(p => {
+                    const pc = PLATFORM_COLORS[p];
+                    return (
+                      <span key={p} style={{
+                        padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                        background: pc.bg, color: pc.color, border: `1px solid ${pc.border}`,
+                      }}>{p}</span>
+                    );
+                  })}
+                  <span style={{ fontSize: 11, color: C.textMuted, alignSelf: "center" }}>— click any course to open on its platform</span>
+                </div>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
+                  gap: 20,
+                }}>
+                  {getFreeCoursesByDistrict(selectedDistrict)
+                    .filter(c => {
+                      if (search) {
+                        const q = search.toLowerCase();
+                        if (!c.title.toLowerCase().includes(q) && !c.sector.toLowerCase().includes(q) && !c.platform.toLowerCase().includes(q)) return false;
+                      }
+                      return true;
+                    })
+                    .sort((a, b) => b.alignment_score - a.alignment_score)
+                    .map((course, i) => (
+                      <FreeCourseCard key={course.id} course={course} index={i} />
+                    ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
