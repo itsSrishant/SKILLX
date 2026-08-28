@@ -451,22 +451,22 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
 }
 
 function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
-  if (!data || data.total_courses_analyzed===0) return null;
-  const lossInCr = (data.estimated_annual_income_loss_inr/10000000).toFixed(1);
+  if (!data || (data.total_courses_analyzed ?? 0) === 0) return null;
+  const lossInCr = ((data.estimated_annual_income_loss_inr ?? 0)/10000000).toFixed(1);
   return (
     <div style={{ background:"white", borderRadius:16, border:`1px solid ${C.border}`, marginBottom:28, overflow:"hidden" }}>
       <div style={{ padding:"16px 24px", background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)", display:"flex", alignItems:"center", gap:14 }}>
         <span style={{ fontSize:24 }}>🔍</span>
         <div>
           <div style={{ fontSize:15, fontWeight:800, color:"white" }}>State-Wide Skill Gap Intelligence · PS 26134</div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginTop:2 }}>Deterministic analysis of {data.total_courses_analyzed} courses · For DVET &amp; Government Planning</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginTop:2 }}>Deterministic analysis of {data.total_courses_analyzed ?? 0} courses · For DVET &amp; Government Planning</div>
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:0 }}>
         {[
-          { label:"Critical Deficit", value:`${data.critical_deficit_courses}`, sub:`${data.critical_deficit_pct}% of courses`, color:C.red, icon:"🔴" },
-          { label:"Trainees At Risk", value:data.total_trainees_at_risk.toLocaleString(), sub:"Need urgent skilling", color:C.orange, icon:"⚠️" },
-          { label:"Skill Mismatch Index", value:`${data.avg_skill_mismatch_pct}%`, sub:"Skills absent from syllabi", color:C.purple, icon:"📉" },
+          { label:"Critical Deficit", value:`${data.critical_deficit_courses ?? 0}`, sub:`${data.critical_deficit_pct ?? 0}% of courses`, color:C.red, icon:"🔴" },
+          { label:"Trainees At Risk", value:(data.total_trainees_at_risk ?? 0).toLocaleString(), sub:"Need urgent skilling", color:C.orange, icon:"⚠️" },
+          { label:"Skill Mismatch Index", value:`${data.avg_skill_mismatch_pct ?? 0}%`, sub:"Skills absent from syllabi", color:C.purple, icon:"📉" },
           { label:"Est. Income Loss/Year", value:`₹${lossInCr} Cr`, sub:"Economic cost of inaction", color:"#4c1d95", icon:"💸" },
         ].map((item,i) => (
           <div key={i} style={{ padding:"20px 22px", borderRight:i<3?`1px solid ${C.border}`:"none", background:i%2===0?"white":C.bg }}>
@@ -510,6 +510,9 @@ function DashboardInner() {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [navigatingId, setNavigatingId] = useState<number|null>(null);
   const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
+  const [fetchError, setFetchError] = useState<string|null>(null);
 
   const fetchAll = useCallback(async () => {
     let hasCache = false;
@@ -521,20 +524,69 @@ function DashboardInner() {
     }
     if (!hasCache) setMetricsLoading(true);
     try {
+      setFetchError(null);
       const [m,g,d,s,ind,sg] = await Promise.all([
-        fetch(`${API}/api/v1/metrics/overview`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/gap-analysis`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/district-summary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/skills/dictionary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/industry-demand`).then(r=>r.json()).catch(()=>null),
-        fetch(`${API}/api/v1/analytics/skill-gap-summary`).then(r=>r.json()).catch(()=>null),
+        fetch(`${API}/api/v1/metrics/overview`).then(r=>{ if(!r.ok) throw new Error("Overview metrics failed"); return r.json(); }),
+        fetch(`${API}/api/v1/analytics/gap-analysis`).then(r=>{ if(!r.ok) throw new Error("Gap analysis failed"); return r.json(); }),
+        fetch(`${API}/api/v1/analytics/district-summary`).then(r=>{ if(!r.ok) throw new Error("District summary failed"); return r.json(); }),
+        fetch(`${API}/api/v1/skills/dictionary`).then(r=>{ if(!r.ok) throw new Error("Skills dictionary failed"); return r.json(); }),
+        fetch(`${API}/api/v1/analytics/industry-demand`).then(r=>{ if(!r.ok) throw new Error("Industry demand failed"); return r.json(); }).catch(()=>null),
+        fetch(`${API}/api/v1/analytics/skill-gap-summary`).then(r=>{ if(!r.ok) throw new Error("Skill gap summary failed"); return r.json(); }).catch(()=>null),
       ]);
       setMetrics(m); setGaps(Array.isArray(g)?g:[]); setDistricts(Array.isArray(d)?d:[]); setSkillDict(s);
       setIndustryDemand(ind); setSkillGapSummary(sg);
       dashMemoryCache = { m,g,d,s,ind,sg, ts:Date.now() };
-    } catch(e) { console.error(e); }
+    } catch(e: any) {
+      console.error(e);
+      setFetchError(e.message || "Failed to load dashboard data. Please verify backend connection.");
+    }
     finally { setMetricsLoading(false); }
   }, []);
+
+  const handleDownloadPDF = async () => {
+    if (isDownloadingPDF) return;
+    setIsDownloadingPDF(true);
+    try {
+      window.open(`${API}/api/v1/reports/executive-pdf`, "_blank");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to download PDF report");
+    } finally {
+      setTimeout(() => setIsDownloadingPDF(false), 1000);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (isExportingCSV) return;
+    setIsExportingCSV(true);
+    try {
+      const headers = ["Course ID", "Course Title", "Institute Type", "Sector", "District", "Alignment Score", "Missing Skills"];
+      const rows = gaps.map(g => [
+        g.course_id,
+        `"${g.course_title.replace(/"/g, '""')}"`,
+        g.institute_type,
+        `"${(g.sector || "").replace(/"/g, '""')}"`,
+        g.district,
+        `${g.alignment_score}%`,
+        `"${(g.missing_skills || []).join(", ").replace(/"/g, '""')}"`
+      ]);
+      
+      const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "SkillX_Flagged_Courses_Brief.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export CSV");
+    } finally {
+      setTimeout(() => setIsExportingCSV(false), 1000);
+    }
+  };
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -611,6 +663,24 @@ function DashboardInner() {
               <div style={{ fontSize:13, color:C.textMuted, marginTop:2 }}>{t.appSubtitle} · Real-Time · {districts.length} Districts · PS 26134</div>
             </div>
             <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+              <button id="download-pdf-btn" onClick={handleDownloadPDF} disabled={isDownloadingPDF || metricsLoading}
+                style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.orange}`, background:"white", color:C.orange, fontSize:13, fontWeight:600, cursor:(isDownloadingPDF || metricsLoading)?"wait":"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.25s" }}
+                onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background=C.orangeLight}
+                onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background="white"}
+              >
+                <span>📄</span>
+                <span>{isDownloadingPDF ? "Downloading..." : "Executive PDF"}</span>
+              </button>
+              
+              <button id="export-csv-btn" onClick={handleExportCSV} disabled={isExportingCSV || metricsLoading}
+                style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.cyan}`, background:"white", color:C.cyan, fontSize:13, fontWeight:600, cursor:(isExportingCSV || metricsLoading)?"wait":"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.25s" }}
+                onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanLight}
+                onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background="white"}
+              >
+                <span>📥</span>
+                <span>{isExportingCSV ? "Exporting..." : "Export CSV"}</span>
+              </button>
+
               <button id="top-skill-dict-btn" onClick={()=>setShowSkillDict(true)}
                 style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.25s" }}
                 onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanMid}
@@ -629,6 +699,13 @@ function DashboardInner() {
               </button>
             </div>
           </div>
+
+          {fetchError && (
+            <div style={{ background:C.redLight, color:C.red, borderRadius:12, padding:"14px 20px", marginBottom:20, border:`1px solid rgba(220,38,38,0.2)`, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span>⚠️ Error: {fetchError}</span>
+              <button onClick={fetchAll} style={{ background:C.red, color:"white", border:"none", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700 }}>Retry Connection</button>
+            </div>
+          )}
 
           {batchToast && (
             <div style={{ background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", borderRadius:12, padding:"14px 20px", marginBottom:20, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between", animation:"fadeInUp 0.3s ease" }}>

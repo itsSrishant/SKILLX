@@ -56,6 +56,7 @@ function StudentInner() {
   const [courses, setCourses] = useState<CourseRec[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<CourseRec | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Bot Assistant Chat State
   const [chatOpen, setChatOpen] = useState(false);
@@ -64,20 +65,31 @@ function StudentInner() {
   ]);
   const [inputMsg, setInputMsg] = useState("");
 
-  useEffect(() => {
+  const fetchCourses = () => {
     setLoading(true);
+    setError(null);
     fetch(`${API}/api/v1/analytics/gap-analysis`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to connect to SkillX backend API");
+        return r.json();
+      })
       .then(data => {
         if (Array.isArray(data)) {
           setCourses(data);
+        } else {
+          throw new Error("Invalid response format received from backend");
         }
         setLoading(false);
       })
       .catch(err => {
         console.error(err);
+        setError(err.message || "Failed to load courses. Please check your network connection.");
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchCourses();
   }, []);
 
   const filtered = courses.filter(c => {
@@ -114,7 +126,7 @@ function StudentInner() {
   return (
     <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: C.text }}>
       {/* Top Header */}
-      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", sticky: "top", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
@@ -202,6 +214,15 @@ function StudentInner() {
 
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: C.textMuted }}>Loading courses for {selectedDistrict}...</div>
+        ) : error ? (
+          <div style={{ background: "white", borderRadius: 16, padding: "48px", textAlign: "center", border: `1px solid ${C.border}`, color: C.red, maxWidth: 600, margin: "0 auto", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: C.text }}>Failed to Load Courses</div>
+            <div style={{ fontSize: 13, color: C.textSub, marginBottom: 20 }}>{error}</div>
+            <button onClick={fetchCourses} style={{ padding: "10px 20px", borderRadius: 10, background: C.cyan, color: "white", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+              Retry Connection
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ background: "white", borderRadius: 16, padding: "48px", textAlign: "center", border: `1px solid ${C.border}`, color: C.textMuted }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>

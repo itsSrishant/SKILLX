@@ -164,6 +164,7 @@ export default function BridgePackPage() {
   const courseId = params?.id ? String(params.id) : "";
 
   const [data, setData] = useState<BridgePackData | null>(null);
+  const [gapData, setGapData] = useState<{ fully_covered_skills: string[]; missing_skills: string[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<number, boolean>>({ 0: true });
@@ -179,8 +180,9 @@ export default function BridgePackPage() {
     let hasCache = false;
     if (bpMemoryCache.has(courseId)) {
       const cached = bpMemoryCache.get(courseId);
-      if (cached && cached.course_id) {
-        setData(cached);
+      if (cached && cached.bp && cached.gap) {
+        setData(cached.bp);
+        setGapData(cached.gap);
         setLoading(false); // Instant 0ms load!
         hasCache = true;
       }
@@ -190,15 +192,21 @@ export default function BridgePackPage() {
       setLoading(true);
     }
 
-    fetch(`${API}/api/v1/recommendations/bridge-pack/${courseId}`)
-      .then((r) => {
+    Promise.all([
+      fetch(`${API}/api/v1/recommendations/bridge-pack/${courseId}`).then(r => {
         if (!r.ok) throw new Error("Failed to load Skill Upgrade Plan");
         return r.json();
+      }),
+      fetch(`${API}/api/v1/analytics/gap-analysis/${courseId}`).then(r => {
+        if (!r.ok) throw new Error("Failed to load Gap Analysis");
+        return r.json();
       })
-      .then((d) => {
-        setData(d);
+    ])
+      .then(([bp, gap]) => {
+        setData(bp);
+        setGapData(gap);
         setLoading(false);
-        bpMemoryCache.set(courseId, d);
+        bpMemoryCache.set(courseId, { bp, gap });
       })
       .catch((err) => {
         setError(err.message);
@@ -258,6 +266,27 @@ export default function BridgePackPage() {
           body {
             background: white !important;
             padding: 0 !important;
+          }
+          
+          /* Modal Print Settings */
+          body:has(.printable-modal) .main-page-content {
+            display: none !important;
+          }
+          body:has(.printable-modal) .printable-modal {
+            position: absolute !important;
+            inset: 0 !important;
+            background: white !important;
+            z-index: 99999 !important;
+            display: block !important;
+            padding: 0 !important;
+          }
+          body:has(.printable-modal) .printable-modal-card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
           }
         }
       `}</style>
@@ -324,7 +353,7 @@ export default function BridgePackPage() {
           <div style={{ fontSize: 14, color: C.textMuted }}>{error || "Course record not found."}</div>
         </div>
       ) : (
-        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+        <div className="main-page-content" style={{ maxWidth: 1120, margin: "0 auto" }}>
           {/* Main Title Banner */}
           <div
             style={{
@@ -366,7 +395,7 @@ export default function BridgePackPage() {
           </div>
 
           {/* KEY DECISION METRICS ROW: Impact & Financial Feasibility */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+          <div className="no-print" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
             {/* Card 1: Employability Lift */}
             <div style={{ background: "white", padding: 20, borderRadius: 16, border: `1px solid ${C.border}`, borderTop: `3px solid ${C.green}` }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>EMPLOYABILITY MATCH</div>
@@ -421,6 +450,16 @@ export default function BridgePackPage() {
                   <br />
                   • Graduates rejected by key employers: <strong>{employers}</strong>.
                 </div>
+                
+                <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5, marginTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 6 }}>Missing Skills:</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(gapData?.missing_skills || []).map(s => (
+                      <span key={s} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "#fee2e2", color: C.red, fontWeight: 600, border: `1px solid rgba(220,38,38,0.1)` }}>✕ {s}</span>
+                    ))}
+                    {(gapData?.missing_skills || []).length === 0 && <span style={{ fontSize: 11, color: C.textMuted }}>No missing skills!</span>}
+                  </div>
+                </div>
               </div>
 
               {/* PROPOSED UPGRADE SOLUTION */}
@@ -441,12 +480,22 @@ export default function BridgePackPage() {
                   <br />
                   • Direct placement readiness for factories across {nearestHub}.
                 </div>
+
+                <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5, marginTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 6 }}>Mastered Skills:</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(gapData?.fully_covered_skills || []).map(s => (
+                      <span key={s} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "#dcfce7", color: C.green, fontWeight: 600, border: `1px solid rgba(34,197,94,0.1)` }}>✓ {s}</span>
+                    ))}
+                    {(gapData?.fully_covered_skills || []).length === 0 && <span style={{ fontSize: 11, color: C.textMuted }}>None</span>}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* EXPLICIT DYNAMIC FACT-BASED POLICY RATIONALE */}
-          <div style={{
+          <div className="no-print" style={{
             background: "linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%)",
             borderRadius: 16, padding: "24px 28px", border: `1px solid ${C.skyMid}`,
             marginBottom: 24, boxShadow: "0 4px 16px rgba(0,53,128,0.05)",
@@ -579,7 +628,7 @@ export default function BridgePackPage() {
           </div>
 
           {/* SIMPLIFIED SIDE-BY-SIDE TOOLING & ASSESSMENT CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 36 }}>
+          <div className="no-print" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 36 }}>
             {/* Tools Required */}
             <div style={{ background: "white", borderRadius: 16, padding: "24px 28px", border: `1px solid ${C.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -624,8 +673,8 @@ export default function BridgePackPage() {
 
       {/* 📄 ONE-PAGER EXECUTIVE SUMMARY MODAL */}
       {showExecSummary && data && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "white", borderRadius: 24, maxWidth: 720, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "32px 40px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+        <div className="printable-modal" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="printable-modal-card" style={{ background: "white", borderRadius: 24, maxWidth: 720, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "32px 40px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, borderBottom: `1px solid ${C.border}`, paddingBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 800, color: C.orange, textTransform: "uppercase" }}>Government Executive Briefing</div>
