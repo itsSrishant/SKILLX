@@ -54,10 +54,11 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
         right: 0,
         zIndex: 1000,
         transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
-        background: scrolled ? "rgba(255,255,255,0.95)" : "rgba(255,253,250,0.88)",
+        background: "rgba(255, 255, 255, 0.98)",
         backdropFilter: "blur(16px)",
-        boxShadow: scrolled ? "0 2px 10px rgba(0,0,0,0.06)" : "none",
-        borderBottom: "1px solid rgba(0,0,0,0.06)",
+        WebkitBackdropFilter: "blur(16px)",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
+        borderBottom: scrolled ? "1px solid rgba(0, 0, 0, 0.06)" : "1px solid transparent",
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, position: "relative" }}>
@@ -98,23 +99,15 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
                 alignItems: "center",
                 gap: 6,
               }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#ea580c";
-                (e.currentTarget as HTMLAnchorElement).style.background = "#fff7ed";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#475569";
-                (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-              }}
             >
-              <span>{item.icon}</span>
+              {item.icon}
               <span>{item.name}</span>
             </a>
           ))}
         </nav>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", zIndex: 2 }}>
-          <Link href="/student" className="btn-light" style={{ padding: "8px 20px", fontSize: 13 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, zIndex: 2 }}>
+          <Link href="/student" className="btn-light" style={{ padding: "8px 18px", fontSize: 13 }}>
             Student Portal
           </Link>
           <EnterDashboardButton

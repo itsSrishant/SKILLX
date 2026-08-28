@@ -62,7 +62,7 @@ def get_overview_metrics(db: Session = Depends(get_db)):
         "candidate_unknown_skills_count": candidate_unknown_count,
         "avg_alignment_score_percentage": avg_score,
         "high_deficit_districts_count": high_deficit_districts,
-        "pipeline_state": pipeline_state
+        "pipeline_state": "IDLE"
     }
 
 @router.get("/api/v1/skills/dictionary")
