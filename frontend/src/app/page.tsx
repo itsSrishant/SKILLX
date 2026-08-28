@@ -541,7 +541,7 @@ export default function LandingPage() {
               { icon: "📊", role: "MSSDS Officers", org: "Maharashtra SSDS", use: "Identify which MSSDS courses need urgent curriculum revision", color: "#0891b2" },
               { icon: "🏫", role: "ITI Principals", org: "Govt. ITI Institutes", use: "Download bridge pack plans and procure lab equipment via GeM", color: "#f97316" },
             ].map((user, i) => (
-              <div key={i} style={{ background: "white", borderRadius: 16, padding: "24px 20px", border: "1px solid rgba(0,0,0,0.07)", borderTop: `3px solid ${user.color}` }}
+              <div key={i}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
                 style={{ background: "white", borderRadius: 16, padding: "24px 20px", border: "1px solid rgba(0,0,0,0.07)", borderTop: `3px solid ${user.color}`, transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)", cursor: "default" }}
