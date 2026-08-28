@@ -128,6 +128,7 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (id: string) 
     { id:"overview",     label:t.navOverview,     icon:"📊" },
     { id:"courses",      label:t.navCourses,      icon:"📋" },
     { id:"industry",     label:t.navIndustry,     icon:"🏭" },
+    { id:"forecast",     label:t.navForecast,     icon:"🔮" },
     { id:"districtplan", label:t.navDistrictPlan, icon:"🗺️" },
     { id:"districts",    label:t.navDistricts,    icon:"📍" },
   ];
@@ -376,6 +377,90 @@ function IndustryDemandSection({ data }: { data: IndustryDemandData | null }) {
   );
 }
 
+function FutureForecastSection() {
+  const [forecast, setForecast] = useState<any>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
+  useEffect(() => {
+    setForecastLoading(true);
+    fetch(`${API}/api/v1/forecast/statewide`)
+      .then(r => r.json())
+      .then(f => { setForecast(f); setForecastLoading(false); })
+      .catch(e => { console.error(e); setForecastLoading(false); });
+  }, []);
+
+  return (
+    <div id="forecast" style={{ marginBottom:28 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+        <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${C.purple},${C.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>🔮</div>
+        <div>
+          <div style={{ fontSize:20, fontWeight:800, color:C.text, fontFamily:"'Playfair Display',serif" }}>State-Wide Future AI Suggestions</div>
+          <div style={{ fontSize:13, color:C.textMuted }}>AI-powered predictive trends for the next 12-24 months across Maharashtra</div>
+        </div>
+      </div>
+      
+      <div style={{ background: "white", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+        <div style={{ padding: "24px" }}>
+          {forecastLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.textMuted, fontSize: 14 }}>
+              <div style={{ fontSize: 24, marginBottom: 8, animation: "pulse 1.5s infinite" }}>🔮</div>
+              Analyzing macro job market velocity & predicting future state-wide trends...
+            </div>
+          ) : forecast ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {/* Emerging Skills */}
+              <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <span>🚀</span> Emerging Skills (Next 12-18 Months)
+                </div>
+                {forecast.emerging_skills.map((skill: any, idx: number) => (
+                  <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{skill.skill}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: skill.confidence === "High" ? C.greenLight : C.amberLight, color: skill.confidence === "High" ? C.green : C.amber }}>
+                        {skill.confidence} Confidence
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Declining Skills & Interventions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                    <span>⚠️</span> Declining or Stagnant Skills
+                  </div>
+                  {forecast.declining_skills.map((skill: any, idx: number) => (
+                    <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 4 }}>{skill.skill}</div>
+                      <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: C.purpleLight, borderRadius: 12, border: `1px solid ${C.purple}30`, padding: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.purple, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <span>💡</span> Recommended State Policy Interventions
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: C.textSub, lineHeight: 1.6 }}>
+                    {forecast.recommended_interventions.map((intervention: string, idx: number) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>{intervention}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Forecast could not be generated at this time.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
   const router = useRouter();
   const [sel, setSel] = useState("");
@@ -507,6 +592,8 @@ function DashboardInner() {
   const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
+  const [sentimentAlerts, setSentimentAlerts] = useState<string[]>([]);
+
   useEffect(() => {
     const dist = selectedDistrict || "Maharashtra";
     setNotifications([
@@ -532,6 +619,14 @@ function DashboardInner() {
       }
     ]);
   }, [selectedDistrict]);
+
+  useEffect(() => {
+    fetch(`${API}/api/v1/analytics/industry-sentiment-alerts`)
+      .then(r => r.json())
+      .then(d => { if(d.alerts) setSentimentAlerts(d.alerts); })
+      .catch(console.error);
+  }, []);
+
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"ALL"|"ITI"|"MSSDS">("ALL");
   const [showSkillDict, setShowSkillDict] = useState(false);
@@ -677,6 +772,23 @@ function DashboardInner() {
       <Sidebar active={activeNav} onSelect={setActiveNav} />
 
       <main style={{ marginLeft:240, flex:1, padding:"28px 32px", overflowX:"hidden" }}>
+
+        {/* AI Sentiment Alerts Ticker */}
+        {sentimentAlerts.length > 0 && (
+          <div style={{ background: `linear-gradient(90deg, #1e1b4b 0%, ${C.cyan} 100%)`, borderRadius: 12, padding: "10px 16px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12, overflow: "hidden", color: "white", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: 999 }}>
+              <span>🔮</span> Live AI Insights
+            </div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ display: "flex", whiteSpace: "nowrap", animation: "ticker 30s linear infinite", fontSize: 13, fontWeight: 600 }}>
+                <style>{`@keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`}</style>
+                {sentimentAlerts.map((alert, i) => (
+                  <span key={i} style={{ marginRight: 60 }}>{alert}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Overview Header & Controls */}
         <div id="overview">
@@ -873,6 +985,9 @@ function DashboardInner() {
         {/* Industry Demand */}
         <IndustryDemandSection data={industryDemand} />
 
+        {/* State-Wide Forecasting */}
+        <FutureForecastSection />
+
         {/* District Plan */}
         <DistrictPlanSection districts={districts} />
 
@@ -974,7 +1089,7 @@ function DashboardInner() {
           </div>
         </div>
       )}
-      {/* ── Executive Policy AI Copilot Floating Assistant ── */}
+      {/* ── AI Skill Assistant Floating Assistant ── */}
       <GovAssistantModal selectedDistrict={selectedDistrict || undefined} />
     </div>
   );

@@ -66,11 +66,16 @@ export function CourseAssistantModal({
     setIsTyping(true);
 
     try {
+      const history = messages.filter(m => !m.loading).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
       const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && window.location.port === "3000" ? "http://localhost:8000" : "");
       const res = await fetch(`${API}/api/v1/assistant/course`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, course_title: courseTitle, district: district })
+        body: JSON.stringify({ message: userMsg, course_title: courseTitle, district: district, history })
       });
 
       const data = await res.json();
@@ -181,9 +186,15 @@ export function CourseAssistantModal({
             }}>
               {msg.loading ? (
                 <div style={{ display: "flex", gap: 4, alignItems: "center", height: 20 }}>
-                  <span style={{ animation: "pulse 1s infinite", width: 6, height: 6, background: "#94a3b8", borderRadius: "50%" }} />
-                  <span style={{ animation: "pulse 1s infinite 0.2s", width: 6, height: 6, background: "#94a3b8", borderRadius: "50%" }} />
-                  <span style={{ animation: "pulse 1s infinite 0.4s", width: 6, height: 6, background: "#94a3b8", borderRadius: "50%" }} />
+                  <style>{`
+                    @keyframes dotBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+                    .mdot { animation: dotBounce 1.4s infinite ease-in-out both; width: 6px; height: 6px; background-color: #94a3b8; border-radius: 50%; display: inline-block; }
+                    .mdot:nth-child(1) { animation-delay: -0.32s; }
+                    .mdot:nth-child(2) { animation-delay: -0.16s; }
+                  `}</style>
+                  <span className="mdot" />
+                  <span className="mdot" />
+                  <span className="mdot" />
                 </div>
               ) : (
                 <div className="md-content">

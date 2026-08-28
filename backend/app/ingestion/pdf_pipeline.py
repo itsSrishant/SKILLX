@@ -8,8 +8,12 @@ import os
 import re
 import json
 import hashlib
+import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+
+logger = logging.getLogger(__name__)
+
 try:
     import fitz  # PyMuPDF
     import pdfplumber
@@ -33,7 +37,7 @@ class PDFCurriculumIngestor:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def detect_pdf_type() -> str:
+    def detect_pdf_type(self) -> str:
         """Determines if PDF is text-based, scanned, or mixed."""
         total_text_chars = 0
         pages_count = 0
@@ -52,7 +56,7 @@ class PDFCurriculumIngestor:
         else:
             return "SCANNED"
 
-    def extract_structured_json() -> Dict[str, Any]:
+    def extract_structured_json(self) -> Dict[str, Any]:
         """Extracts canonical structured JSON with provenance tracking."""
         pdf_type = self.detect_pdf_type()
         doc = fitz.open(self.pdf_path)

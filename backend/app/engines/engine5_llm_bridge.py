@@ -730,7 +730,7 @@ class Engine5LLMBridgePack:
         return {
             "course_id": course_id,
             "course_title": course.title,
-            "course_description": course.description or "No description provided.",
+            "course_description": course.syllabus_text[:200] + "..." if course.syllabus_text else "No description provided.",
             "institute_type": course.institute_type,
             "district": course.district,
             "sector": course.sector or "Industrial Technology",

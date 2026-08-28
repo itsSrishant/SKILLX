@@ -12,24 +12,35 @@ from app.db.database import get_db
 from app.db.models import Course, SkillGapAnalysis, JobPosting
 from app.db.trade_benchmarks import TRADE_RESEARCH_DATA, get_trade_benchmark
 from app.core.rate_limiter import limiter
-from app.api.dependencies import require_admin
+from app.api.dependencies import require_admin, verify_admin_key
 
 logger = logging.getLogger("API_Assistant")
 
 router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 
 
+class MessageData(BaseModel):
+    role: constr(max_length=10) # 'user' or 'model'
+    content: constr(max_length=2000)
+
 class StudentChatRequest(BaseModel):
     message: constr(strip_whitespace=True, max_length=1000)
     district: Optional[constr(max_length=50)] = "Pune"
-
+    history: Optional[List[MessageData]] = []
 
 class GovernmentChatRequest(BaseModel):
     message: constr(strip_whitespace=True, max_length=1000)
     district: Optional[constr(max_length=50)] = "All Districts"
+    history: Optional[List[MessageData]] = []
+
+class CourseChatRequest(BaseModel):
+    message: constr(strip_whitespace=True, max_length=1000)
+    course_title: constr(max_length=200)
+    district: Optional[constr(max_length=50)] = "Pune"
+    history: Optional[List[MessageData]] = []
 
 
-def _call_gemini_with_guardrails(system_instruction: str, user_prompt: str) -> Optional[str]:
+def _call_gemini_with_guardrails(system_instruction: str, user_prompt: str, history: Optional[List[Any]] = None) -> Optional[str]:
     """Helper to call Gemini API with low temperature and strict safety settings."""
     keys_env = os.environ.get("GEMINI_API_KEYS", "").strip()
     keys_to_try = [k.strip() for k in keys_env.split(",") if k.strip()]
@@ -39,6 +50,13 @@ def _call_gemini_with_guardrails(system_instruction: str, user_prompt: str) -> O
 
     if not keys_to_try:
         return None
+
+    # Format history for Gemini
+    formatted_history = []
+    if history:
+        for msg in history:
+            role = "user" if msg.role == "user" else "model"
+            formatted_history.append({"role": role, "parts": [msg.content]})
 
     try:
         import google.generativeai as genai
@@ -57,25 +75,38 @@ def _call_gemini_with_guardrails(system_instruction: str, user_prompt: str) -> O
             "temperature": 0.7,  # Increased temperature for a friendly, conversational guide
         }
 
+        models_to_try = [llm_model]
+        if llm_model != "gemini-flash-lite-latest":
+            models_to_try.append("gemini-flash-lite-latest")
+
         for api_key in keys_to_try:
-            try:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(
-                    model_name=llm_model,
-                    system_instruction=system_instruction,
-                    generation_config=generation_config,
-                    safety_settings=safety_settings,
-                )
-                response = model.generate_content(user_prompt)
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                logger.warning(f"Gemini assistant call failed with key: {e}")
-                continue
+            genai.configure(api_key=api_key)
+            for current_model in models_to_try:
+                try:
+                    model = genai.GenerativeModel(
+                        model_name=current_model,
+                        system_instruction=system_instruction,
+                        generation_config=generation_config,
+                        safety_settings=safety_settings,
+                    )
+                    
+                    if formatted_history:
+                        chat = model.start_chat(history=formatted_history)
+                        response = chat.send_message(user_prompt)
+                    else:
+                        response = model.generate_content(user_prompt)
+                        
+                    if response and response.text:
+                        return response.text.strip()
+                except Exception as e:
+                    logger.warning(f"Gemini call failed with model {current_model} and key: {e}")
+                    print(f"DEBUG GEMINI EXCEPTION ({current_model}): {e}")
+                    continue
 
         return None
     except Exception as e:
         logger.error(f"Gemini library error: {e}")
+        print(f"DEBUG GEMINI LIBRARY EXCEPTION: {e}")
         return None
 
 
@@ -130,7 +161,7 @@ REAL MAHARASHTRA DATABASE FACTS FOR {district.upper()} DISTRICT:
     user_prompt = f"Candidate Query ({district} District): {message}"
 
     # Try Gemini LLM First
-    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt)
+    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history)
     if ai_reply:
         return {
             "source": "llm-gemini",
@@ -178,7 +209,7 @@ def government_chat_assistant(
     request: Request,
     req: GovernmentChatRequest,
     db: Session = Depends(get_db),
-    admin_user: dict = Depends(require_admin)
+    admin_user: str = Depends(verify_admin_key)
 ):
     """
     Executive Government Policy & Skilling AI Copilot for DVET/MSSDS Directors & District Officers.
@@ -221,7 +252,7 @@ REAL MAHARASHTRA GOVERNMENT METRICS (SKILLX DB):
     user_prompt = f"Government Officer Query: {message}"
 
     # Try Gemini LLM First
-    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt)
+    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history)
     if ai_reply:
         return {
             "source": "llm-gemini",
@@ -295,9 +326,9 @@ COURSE CONTEXT:
 - Location: {district}
 - Status: This is an official NCVET recognized course.
 """
-    user_prompt = f"User Query about {title}: {message}"
+    user_prompt = f"Instructor Query regarding '{title}' in {district}: {message}"
 
-    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt)
+    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history)
     if ai_reply:
         return {
             "source": "llm-gemini",

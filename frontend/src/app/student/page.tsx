@@ -508,6 +508,31 @@ function SkillUpgradeModal({
 }) {
   const [activeSection, setActiveSection] = useState<"gap" | "roadmap" | "jobs" | "next">("gap");
   const [loadingBP, setLoadingBP] = useState(!bridgePack);
+  const [analyzingJob, setAnalyzingJob] = useState<string | null>(null);
+  const [shortestPathData, setShortestPathData] = useState<{ [job: string]: string }>({});
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  const analyzeShortestPath = async (job: string) => {
+    setAnalyzingJob(job);
+    try {
+      const res = await fetch(`${API}/api/v1/student/shortest-path-hiring`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_skills: course.missing_skills,
+          target_job_role: job
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShortestPathData(prev => ({ ...prev, [job]: data.roadmap_markdown }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setAnalyzingJob(null);
+  };
 
   const SECTION_TABS = [
     { id: "gap",     label: "Skill Gap Analysis",  icon: "🔍" },
@@ -715,24 +740,37 @@ function SkillUpgradeModal({
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {jobsUnlocked.map((job, i) => (
                   <div key={i} style={{
-                    background: C.bg, borderRadius: 12, padding: "14px 16px",
-                    border: `1px solid ${C.border}`, display: "flex",
-                    alignItems: "center", justifyContent: "space-between",
+                    background: C.bg, borderRadius: 12, overflow: "hidden",
+                    border: `1px solid ${C.border}`, display: "flex", flexDirection: "column"
                   }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 3 }}>
-                        💼 {job}
+                    <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 3 }}>
+                          💼 {job}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.textMuted }}>
+                          MIDC Clusters: Pune, Nashik, Thane
+                        </div>
                       </div>
-                      <div style={{ fontSize: 11, color: C.textMuted }}>
-                        MIDC Clusters: Pune, Nashik, Thane
+                      <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>
+                          ₹15k–22k/mo
+                        </div>
+                        <button 
+                          onClick={() => analyzeShortestPath(job)}
+                          disabled={analyzingJob === job}
+                          style={{ padding: "4px 10px", borderRadius: 6, border: "none", background: `linear-gradient(135deg,${C.purple},${C.cyan})`, color: "white", fontSize: 10, fontWeight: 700, cursor: analyzingJob === job ? "wait" : "pointer" }}
+                        >
+                          {analyzingJob === job ? "Analyzing..." : "✨ AI Shortest Path"}
+                        </button>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>
-                        ₹15k–22k/mo
+                    {shortestPathData[job] && (
+                      <div style={{ padding: "14px 16px", background: C.cyanLight, borderTop: `1px solid ${C.cyan}30`, fontSize: 12, color: C.textSub, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                        <div style={{ fontWeight: 800, color: C.cyan, marginBottom: 8, fontSize: 11, textTransform: "uppercase" }}>AI Roadmap to Hiring</div>
+                        {shortestPathData[job]}
                       </div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>Policy Benchmark*</div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1108,10 +1146,16 @@ function ChatAssistant({ district }: { district: string }) {
 
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      
+      const history = messages.map(m => ({
+        role: m.sender === "user" ? "user" : "model",
+        content: m.text
+      }));
+
       const res = await fetch(`${API_BASE}/api/v1/assistant/student`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, district })
+        body: JSON.stringify({ message: userMsg, district, history })
       });
       if (res.ok) {
         const data = await res.json();
@@ -1185,8 +1229,28 @@ function ChatAssistant({ district }: { district: string }) {
             border: m.sender === "user" ? "none" : `1px solid ${C.border}`,
             fontSize: 12, lineHeight: 1.5,
             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+            whiteSpace: "pre-wrap"
           }}>{m.text}</div>
         ))}
+        {loading && (
+          <div style={{
+            alignSelf: "flex-start",
+            padding: "8px 12px", borderRadius: 14,
+            background: C.card, border: `1px solid ${C.border}`,
+            display: "flex", gap: 4, alignItems: "center", height: 24,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+          }}>
+            <style>{`
+              @keyframes studBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+              .sdot { animation: studBounce 1.4s infinite ease-in-out both; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%; display: inline-block; }
+              .sdot:nth-child(1) { animation-delay: -0.32s; }
+              .sdot:nth-child(2) { animation-delay: -0.16s; }
+            `}</style>
+            <span className="sdot" />
+            <span className="sdot" />
+            <span className="sdot" />
+          </div>
+        )}
       </div>
       {/* Input */}
       <div style={{

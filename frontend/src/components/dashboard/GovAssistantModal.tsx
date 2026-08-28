@@ -7,7 +7,7 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
   const [messages, setMessages] = useState<{ sender: "bot" | "user"; text: string; source?: string }[]>([
     {
       sender: "bot",
-      text: "🏛️ **Namaste Director / Officer!**\n\nI am your **Executive Skilling Policy Copilot**. Ask me about district alignment scores, critical deficit courses, NCVET/MSSDS syllabus revision proposals, or intervention budget planning."
+      text: "🏛️ **Namaste Director / Officer!**\n\nI am your **AI Skill Assistant**. Ask me about district alignment scores, critical deficit courses, NCVET/MSSDS syllabus revision proposals, or intervention budget planning."
     }
   ]);
   const [input, setInput] = useState("");
@@ -27,10 +27,19 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
 
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      
+      const history = messages.map(m => ({
+        role: m.sender === "user" ? "user" : "model",
+        content: m.text
+      }));
+
       const res = await fetch(`${API_BASE}/api/v1/assistant/government`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, district })
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Admin-API-Key": process.env.NEXT_PUBLIC_ADMIN_API_KEY || "skillx-dev-secret-key-123"
+        },
+        body: JSON.stringify({ message: userMsg, district, history })
       });
 
       if (res.ok) {
@@ -81,7 +90,7 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
         }}
       >
         <Sparkles size={18} />
-        <span>Policy AI Copilot</span>
+        <span>AI Skill Assistant</span>
       </button>
     );
   }
@@ -131,7 +140,7 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
             <Bot size={20} />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800 }}>Executive Policy AI Copilot</div>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>AI Skill Assistant</div>
             <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
               <ShieldCheck size={12} color="#22c55e" /> Fact-Grounded • DVET / MSSDS Data
             </div>
@@ -230,17 +239,25 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
             style={{
               alignSelf: "flex-start",
               background: "white",
-              padding: "10px 16px",
-              borderRadius: 18,
-              fontSize: 12,
+              padding: "12px 18px",
+              borderRadius: "18px 18px 18px 4px",
+              fontSize: 16,
               color: "#64748b",
               display: "flex",
               alignItems: "center",
-              gap: 8
+              gap: 4,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
             }}
           >
-            <RefreshCw size={14} className="animate-spin" />
-            Analyzing Maharashtra Labour DB & Gemini Guardrails...
+            <style>{`
+              @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+              .dot { animation: bounce 1.4s infinite ease-in-out both; width: 6px; height: 6px; background-color: #94a3b8; border-radius: 50%; display: inline-block; }
+              .dot:nth-child(1) { animation-delay: -0.32s; }
+              .dot:nth-child(2) { animation-delay: -0.16s; }
+            `}</style>
+            <div className="dot"></div>
+            <div className="dot"></div>
+            <div className="dot"></div>
           </div>
         )}
       </div>
