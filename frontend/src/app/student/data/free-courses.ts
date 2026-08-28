@@ -428,6 +428,7 @@ export const FREE_COURSES: FreeCourse[] = [
 
 // Helper: Get free courses relevant to a district
 export function getFreeCoursesByDistrict(district: string): FreeCourse[] {
+  if (!district || district === "All Districts") return FREE_COURSES;
   return FREE_COURSES.filter(c =>
     c.applicable_districts === "All Districts" ||
     (Array.isArray(c.applicable_districts) && c.applicable_districts.includes(district))

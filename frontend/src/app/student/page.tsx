@@ -49,6 +49,7 @@ const C = {
 
 // ── Maharashtra districts (all 36) ────────────────────────────────────────────
 const MAHARASHTRA_DISTRICTS = [
+  "All Districts",
   "Pune", "Mumbai City", "Mumbai Suburban", "Thane", "Nashik", "Nagpur",
   "Chhatrapati Sambhajinagar", "Palghar", "Raigad", "Solapur", "Kolhapur",
   "Ahmednagar", "Satara", "Sangli", "Amravati", "Nanded", "Latur", "Dhule",
@@ -129,7 +130,7 @@ interface BridgePackData {
 
 const DEFAULT_PROFILE: StudentProfile = {
   name:             "",
-  district:         "Pune",
+  district:         "All Districts",
   education:        "",
   currentTrade:     "",
   existingSkills:   [],
@@ -1374,7 +1375,7 @@ function StudentInner() {
   const [profileLoaded, setProfileLoaded]   = useState(false);
 
   // — Filter state
-  const [selectedDistrict, setSelectedDistrict] = useState("Pune");
+  const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
   const [selectedSectors,  setSelectedSectors]  = useState<string[]>([]);
   const [search, setSearch] = useState("");
 
@@ -1400,7 +1401,7 @@ function StudentInner() {
       if (saved) {
         const p: StudentProfile = JSON.parse(saved);
         setProfile(p);
-        setSelectedDistrict(p.district || "Pune");
+        setSelectedDistrict(p.district || "All Districts");
         if (!p.onboardingDone) setShowOnboarding(true);
       } else {
         setShowOnboarding(true);
@@ -1462,7 +1463,7 @@ function StudentInner() {
   // ── Client-side filtering (memoized) ─────────────────────────────────────────
   const filtered = useMemo(() => {
     return courses.filter(c => {
-      if (selectedDistrict && c.district !== selectedDistrict) return false;
+      if (selectedDistrict && selectedDistrict !== "All Districts" && c.district !== selectedDistrict) return false;
       if (selectedSectors.length > 0) {
         const sectorLabel = SECTORS.find(s => selectedSectors.includes(s.id))?.label;
         const matched = selectedSectors.some(sid => {

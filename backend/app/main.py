@@ -182,7 +182,7 @@ def run_all_engines(db: Session = Depends(get_db)):
     try:
         pipeline_state["current_engine"] = "Engine 1: Ingesting DVET 85 Trades & MSSDS Master (District-Specialised)..."
         pipeline_state["progress_percentage"] = 25
-        e1 = Engine1CourseIngestion(db).run_ingestion(limit=50)
+        e1 = Engine1CourseIngestion(db).run_ingestion(limit=None)
 
         pipeline_state["current_engine"] = "Engine 2: Ingesting Job Postings (Trade-Realistic Recency Weights)..."
         pipeline_state["progress_percentage"] = 50
