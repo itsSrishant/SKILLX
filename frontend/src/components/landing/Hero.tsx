@@ -23,7 +23,7 @@ export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
         }} />
       </div>
 
-      <div ref={ref} style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "0 40px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "center" }}>
+      <div ref={ref} className="hero-grid" style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", padding: "0 40px" }}>
         {/* Left Side: Text Content */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", textAlign: "left" }}>
           <div style={{
@@ -92,7 +92,7 @@ export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
 
       {/* Feature Cards below the fold */}
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "60px auto 0", padding: "0 40px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+        <div className="features-grid">
           {[
             { icon: <Landmark />, title: "Real Government Data", desc: "Policy-aligned insights", color: "#f97316", bg: "#fff7ed", border: "#ffedd5" },
             { icon: <Cpu />, title: "4 Intelligent Engines", desc: "Data-driven skilling", color: "#0891b2", bg: "#ecfeff", border: "#cffafe" },
