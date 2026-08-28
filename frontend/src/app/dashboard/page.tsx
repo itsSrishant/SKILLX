@@ -54,6 +54,7 @@ interface GapRecord {
 interface DistrictSummary {
   district: string; active_courses: number; relevant_jobs: number;
   avg_alignment_score: number; top_missing_skills: string[]; deficit_status: string;
+  iti_courses?: number; mssds_courses?: number;
 }
 interface SkillDictData {
   standard_dictionary_count: number;
@@ -284,8 +285,8 @@ function BridgePackModal({ data, onClose }: { data: BridgePackResponse; onClose:
   );
 }
 
-function IndustryDemandSection({ data }: { data: IndustryDemandData | null }) {
-  if (!data) return <GoalCircleLoader text="Loading Industry Demand Intelligence..." />;
+function IndustryDemandSection({ data }: { data: IndustryDemandData | any | null }) {
+  if (!data || data.status === "NO_DATA" || !data.top_demanded_skills) return <GoalCircleLoader text="Loading Industry Demand Intelligence..." />;
   const top15 = data.top_demanded_skills.slice(0,15);
   const sectorColors = [C.purple,C.cyan,C.orange,C.green,C.sky,C.amber];
   return (
@@ -317,7 +318,7 @@ function IndustryDemandSection({ data }: { data: IndustryDemandData | null }) {
             <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>Ranked by frequency across all active job postings</div>
           </div>
           <div style={{ maxHeight:480, overflowY:"auto" }}>
-            {top15.map((s,i) => (
+            {top15.map((s: any, i: number) => (
               <div key={s.skill} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 20px", borderBottom:`1px solid ${C.border}`, transition:"background 0.15s" }}
                 onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background=C.bg}
                 onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background="white"}
@@ -349,14 +350,14 @@ function IndustryDemandSection({ data }: { data: IndustryDemandData | null }) {
             <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>Which sectors are driving skill demand</div>
           </div>
           <div style={{ padding:"16px 20px" }}>
-            {data.sector_breakdown.slice(0,6).map((sec,i) => (
+            {data.sector_breakdown.slice(0,6).map((sec: any, i: number) => (
               <div key={sec.sector} style={{ marginBottom:18 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{sec.sector}</div>
                   <div style={{ fontSize:12, fontWeight:600, color:C.textMuted }}>{sec.total_job_demand} demands</div>
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
-                  {sec.top_skills.slice(0,3).map(s => (
+                  {(sec.top_skills||[]).slice(0,3).map((s: any) => (
                     <span key={s.skill} style={{ fontSize:10, padding:"2px 7px", borderRadius:999, background:C.bg, color:C.textSub, border:`1px solid ${C.border}` }}>{s.skill} ({s.count})</span>
                   ))}
                 </div>
@@ -396,7 +397,7 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
               style={{ padding:"10px 16px", borderRadius:10, border:`1px solid ${C.border}`, background:"white", fontSize:14, fontWeight:600, color:C.text, cursor:"pointer", outline:"none", minWidth:220 }}
             >
               <option value="">— Select a District —</option>
-              {districts.map(d => <option key={d.district} value={d.district}>{d.district} · Score: {Math.round(d.avg_alignment_score)}/100</option>)}
+              {districts.map((d: any) => <option key={d.district} value={d.district}>{d.district} · Score: {Math.round(d.avg_alignment_score)}/100</option>)}
             </select>
             {sel && (
               <button id="view-district-plan-btn" onClick={() => router.push(`/district-plan/${encodeURIComponent(sel)}`)}
@@ -407,21 +408,21 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
         </div>
         {selected ? (
           <div style={{ padding:"24px" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:14, marginBottom:20 }}>
               {[
                 { v:selected.active_courses, l:"Active Courses" },
                 { v:selected.relevant_jobs, l:"Active Jobs" },
               ].map((item,i) => (
-                <div key={i} style={{ background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
+                <div key={i} style={{ flex:"1 1 200px", background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
                   <div style={{ fontSize:22, fontWeight:800, color:C.text }}>{item.v}</div>
                   <div style={{ fontSize:12, color:C.textSub, fontWeight:600 }}>{item.l}</div>
                 </div>
               ))}
-              <div style={{ background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
+              <div style={{ flex:"1 1 200px", background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
                 <ScoreChip score={selected.avg_alignment_score} />
                 <div style={{ fontSize:12, color:C.textSub, fontWeight:600, marginTop:4 }}>Avg Alignment</div>
               </div>
-              <div style={{ background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
+              <div style={{ flex:"1 1 200px", background:C.bg, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}` }}>
                 <span style={{ fontSize:12, fontWeight:800, padding:"4px 10px", borderRadius:999, background:selected.deficit_status==="ALIGNED"?C.greenLight:selected.deficit_status==="MODERATE"?C.amberLight:C.redLight, color:selected.deficit_status==="ALIGNED"?C.green:selected.deficit_status==="MODERATE"?C.amber:C.red }}>{selected.deficit_status}</span>
                 <div style={{ fontSize:12, color:C.textSub, fontWeight:600, marginTop:4 }}>Status</div>
               </div>
@@ -450,8 +451,8 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
   );
 }
 
-function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
-  if (!data || data.total_courses_analyzed===0) return null;
+function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | any | null }) {
+  if (!data || data.status === "NO_DATA" || !data.total_courses_analyzed) return null;
   const lossInCr = (data.estimated_annual_income_loss_inr/10000000).toFixed(1);
   return (
     <div style={{ background:"white", borderRadius:16, border:`1px solid ${C.border}`, marginBottom:28, overflow:"hidden" }}>
@@ -479,7 +480,7 @@ function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
       {data.state_wide_top_deficits.length>0 && (
         <div style={{ padding:"14px 24px", borderTop:`1px solid ${C.border}`, background:C.bg, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
           <div style={{ fontSize:12, fontWeight:700, color:C.textSub, flexShrink:0 }}>State-Wide Top Deficits:</div>
-          {data.state_wide_top_deficits.slice(0,6).map(d => (
+          {data.state_wide_top_deficits.slice(0,6).map((d: any) => (
             <span key={d.skill} style={{ fontSize:11, padding:"3px 10px", borderRadius:999, background:C.redLight, color:C.red, fontWeight:600, border:`1px solid ${C.red}20` }}>{d.skill} ({d.courses_affected} courses)</span>
           ))}
         </div>
@@ -584,6 +585,10 @@ function DashboardInner() {
   const criticalPct=skillGapSummary?.critical_deficit_pct??0;
   const traineeRisk=skillGapSummary?.total_trainees_at_risk??0;
   const mismatchPct=skillGapSummary?.avg_skill_mismatch_pct??0;
+
+  const filteredDistricts = useMemo(() => selectedDistrict ? districts.filter(d => d.district === selectedDistrict) : districts, [districts, selectedDistrict]);
+  const itiCount = useMemo(() => selectedDistrict ? (filteredDistricts[0]?.iti_courses ?? 0) : ((metrics as Record<string,number>)?.iti_courses_count ?? 0), [filteredDistricts, selectedDistrict, metrics]);
+  const mssdsCount = useMemo(() => selectedDistrict ? (filteredDistricts[0]?.mssds_courses ?? 0) : ((metrics as Record<string,number>)?.mssds_courses_count ?? 0), [filteredDistricts, selectedDistrict, metrics]);
 
   return (
     <div style={{ display:"flex", background:C.bg, minHeight:"100vh", fontFamily:"'Inter',sans-serif" }}>
@@ -776,7 +781,7 @@ function DashboardInner() {
                 <select id="district-dropdown-select" value={selectedDistrict||""} onChange={e=>setSelectedDistrict(e.target.value||null)}
                   style={{ padding:"9px 16px", borderRadius:10, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, fontSize:13, fontWeight:700, color:C.cyan, cursor:"pointer", outline:"none" }}>
                   <option value="">All {districts.length} Districts</option>
-                  {districts.map(d=><option key={d.district} value={d.district}>📍 {d.district} ({d.active_courses} · {Math.round(d.avg_alignment_score)}/100)</option>)}
+                  {districts.map((d: any) => (<option key={d.district} value={d.district}>📍 {d.district} ({d.active_courses} · {Math.round(d.avg_alignment_score)}/100)</option>))}
                 </select>
               </div>
             </div>
@@ -789,8 +794,8 @@ function DashboardInner() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={[
-                      { name:`ITI (${(metrics as Record<string,number>)?.iti_courses_count??0})`, value:(metrics as Record<string,number>)?.iti_courses_count??0 },
-                      { name:`MSSDS (${(metrics as Record<string,number>)?.mssds_courses_count??0})`, value:(metrics as Record<string,number>)?.mssds_courses_count??0 }
+                      { name:`ITI (${itiCount})`, value:itiCount },
+                      { name:`MSSDS (${mssdsCount})`, value:mssdsCount }
                     ]} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
                       <Cell fill={C.orange} /><Cell fill={C.cyan} />
                     </Pie>
@@ -807,7 +812,7 @@ function DashboardInner() {
                   <tr>{["District","Courses","Jobs","Score","Status","Plan"].map(h=><th key={h} style={{ textAlign:"left", padding:"8px 10px", fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", borderBottom:`1px solid ${C.border}` }}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {districts.map(d=>(
+                  {filteredDistricts.map(d=>(
                     <tr key={d.district} style={{ borderBottom:`1px solid ${C.border}`, cursor:"pointer" }} onClick={()=>setSelectedDistrict(d.district===selectedDistrict?null:d.district)}>
                       <td style={{ padding:"10px", fontSize:13, fontWeight:600, color:selectedDistrict===d.district?C.cyan:C.text }}>{selectedDistrict===d.district?"▶ ":""}{d.district}</td>
                       <td style={{ padding:"10px", fontSize:13, color:C.textSub }}>{d.active_courses}</td>

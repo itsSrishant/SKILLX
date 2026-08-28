@@ -2,11 +2,25 @@
 Engine 4: Deterministic SAI-V2 Hybrid Alignment & Skill Gap Analysis Engine
 Zero-API / Zero-LLM Architecture
 
-Fixes applied:
+Version 2.0.0: Integrated with SkillX Ontology + ScoringEngine for ontology-aware matching.
+Version 1.x: Original sub-domain keyword partial credit engine (retained as fallback).
+
+Upgrade path:
+  Engine4SkillGapAnalysis.run_analysis()   → original v1 (backward compatible)
+  Engine4SkillGapAnalysis.run_analysis_v2() → new ontology-aware GapEngine wrapper
+
+Fixes applied (v1):
 - I2: Partial credit now requires matching sub-category keyword (not just broad category)
 - D4: top_skill_gaps cap raised from 5 → 15
 - I7: Tier 4 capped to top-50 most-demanded jobs (not all 500)
 - NSQF level bonus weight added per course
+
+New in v2:
+- Ontology-aware relationship matching (CHILD_OF, PARENT_OF, RELATED_TO)
+- NOT_EQUIVALENT guard prevents false positive matches
+- Critical gap penalty applied to final score
+- Full ScoreBreakdown audit trail
+- Scoring weights from ScoringConfig (versioned, configurable)
 """
 
 import math
@@ -18,6 +32,11 @@ from sqlalchemy.orm import Session
 from app.db.models import Course, JobPosting, ExtractedSkill, SkillGapAnalysis
 
 logger = logging.getLogger("Engine4_SkillGap")
+
+# ── Lazy import of new engines to avoid circular imports ──────────────────────
+# These are imported inside run_analysis_v2() to ensure the ontology singleton
+# is fully initialized before use.
+
 
 # Sub-category keyword mapping for precise partial credit (fixes I2)
 # A partial match only earns credit if both skills share an industrial sub-domain keyword
@@ -372,3 +391,43 @@ class Engine4SkillGapAnalysis:
             "analyses_created": analyses_created,
             "latency_ms": latency,
         }
+
+    def run_analysis_v2(
+        self, target_course_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Ontology-aware gap analysis (v2) — delegates to the new GapEngine.
+
+        This is the preferred method for all new code. The original run_analysis()
+        is retained for backward compatibility during the transition period.
+
+        Returns a result dict compatible with the existing API response format.
+        """
+        from app.scoring.gap_engine import GapEngine
+        from app.scoring.scoring_config import DEFAULT_SCORING_CONFIG
+
+        gap_engine = GapEngine(self.db, DEFAULT_SCORING_CONFIG)
+
+        if target_course_id:
+            report = gap_engine.analyze_course(target_course_id)
+            if report:
+                gap_engine._save_to_db(report)
+                self.db.commit()
+            return {
+                "status": "SUCCESS",
+                "courses_analyzed": 1,
+                "analyses_created": 1 if report else 0,
+                "alignment_score": report.alignment_score if report else 0.0,
+                "gap_engine_version": "2.0.0",
+                "latency_ms": report.execution_latency_ms if report else 0.0,
+            }
+        else:
+            result = gap_engine.run_all()
+            return {
+                "status": "SUCCESS",
+                "courses_analyzed": result["courses_processed"],
+                "analyses_created": result["courses_processed"],
+                "errors": result["errors"],
+                "gap_engine_version": "2.0.0",
+                "latency_ms": result["latency_ms"],
+            }

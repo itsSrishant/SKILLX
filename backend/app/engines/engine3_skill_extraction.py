@@ -22,137 +22,8 @@ logger = logging.getLogger("Engine3_SkillExtraction")
 # ──────────────────────────────────────────────────────────────────────────────
 # Master Zero-API Skill Taxonomy (50+ Core Industrial Trade Skills)
 # ──────────────────────────────────────────────────────────────────────────────
-INITIAL_SKILL_DICTIONARY = [
-    # Electrical Trades
-    {"name": "3-Phase Motor Control", "category": "Technical Skills",
-     "synonyms": ["3 phase motor", "three phase motor", "induction motor wiring", "motor control panel", "star delta starter", "dol starter", "motor control center"]},
-    {"name": "Armature Motor Winding", "category": "Technical Skills",
-     "synonyms": ["armature winding", "motor rewinding", "coil winding", "stator winding", "insulation testing", "winding resistance test"]},
-    {"name": "Substation Transformer Maintenance", "category": "Technical Skills",
-     "synonyms": ["transformer maintenance", "substation equipment", "switchgear", "oil testing", "circuit breaker maintenance", "circuit breaker testing", "power transformer"]},
-    {"name": "Electrical & High Voltage Safety", "category": "Safety Skills",
-     "synonyms": ["electrical safety", "high voltage safety", "lockout tagout", "loto", "arc flash safety", "earthing protection", "loto safety protocol", "loto protocol"]},
-    {"name": "Power Factor Improvement", "category": "Technical Skills",
-     "synonyms": ["power factor", "power factor correction", "capacitor bank", "reactive power", "unity power factor"]},
-    {"name": "House Wiring & LT Network", "category": "Technical Skills",
-     "synonyms": ["house wiring", "domestic wiring", "lt network", "internal wiring", "conduit wiring", "rural electrification wiring"]},
-
-    # Precision Measurement & Tools
-    {"name": "Precision Vernier Caliper & Micrometer", "category": "Tools & Equipment",
-     "synonyms": ["vernier caliper", "micrometer gauge", "precision measurement", "dial indicator", "height gauge", "bore gauge", "precision measuring instrument calibration"]},
-    {"name": "Hydraulic & Pneumatic Valves", "category": "Tools & Equipment",
-     "synonyms": ["hydraulic valves", "pneumatic circuits", "solenoid valves", "fluid power", "hydraulic actuators", "pneumatic cylinder", "hydraulic circuit", "pneumatic actuators", "hydraulic cylinder reconditioning"]},
-    {"name": "Engineering Drawing & Blueprint Reading", "category": "Technical Skills",
-     "synonyms": ["engineering drawing", "blueprint reading", "orthographic projection", "isometric drawing", "gd&t", "gd t", "drawing reading"]},
-
-    # Metalworking, Fabrication & Welding
-    {"name": "MIG Welding (GMAW)", "category": "Technical Skills",
-     "synonyms": ["mig welding", "gmaw", "gas metal arc welding", "mig welder", "co2 welding", "gas metal arc welding gmaw mig"]},
-    {"name": "TIG Welding (GTAW)", "category": "Technical Skills",
-     "synonyms": ["tig welding", "gtaw", "gas tungsten arc welding", "argon welding", "tig welder", "gas tungsten arc welding gtaw tig"]},
-    {"name": "Shielded Metal Arc Welding (SMAW)", "category": "Technical Skills",
-     "synonyms": ["smaw", "arc welding", "stick welding", "manual metal arc welding", "mmaw", "shielded metal arc welding smaw"]},
-    {"name": "Robotic Welding Operations", "category": "Emerging Skills",
-     "synonyms": ["robotic welding", "robot welder", "automated welding", "welding robot", "robotic arc welding"]},
-    {"name": "Weld Defect Inspection & NDT", "category": "Safety Skills",
-     "synonyms": ["weld defect inspection", "ndt testing", "ndt", "non destructive testing", "radiography testing", "ultrasonic testing", "dye penetrant testing"]},
-    {"name": "CNC Lathe & Turning Operation", "category": "Technical Skills",
-     "synonyms": ["cnc lathe", "cnc turning", "lathe machine", "turning center", "facing and grooving", "taper turning", "eccentric turning", "thread cutting"]},
-    {"name": "Milling & Gear Cutting Operation", "category": "Technical Skills",
-     "synonyms": ["milling machine", "gear cutting", "spur gears", "surface grinding", "milling operation"]},
-    {"name": "Sheet Metal Fabrication & Layout", "category": "Technical Skills",
-     "synonyms": ["sheet metal", "metal fabrication", "bending and shearing", "sheet metal development", "press brake"]},
-    {"name": "Distortion Control in Welding", "category": "Technical Skills",
-     "synonyms": ["distortion control", "weld distortion", "welding distortion", "thermal distortion management"]},
-
-    # Industrial Automation & Digital Technologies
-    {"name": "PLC Programming & Troubleshooting", "category": "Digital & Technology Skills",
-     "synonyms": ["plc", "plc programming", "programmable logic controller", "ladder logic", "plc troubleshooting", "plc scada interlock", "allen bradley plc", "siemens s7", "siemens s7 1200", "allen bradley micrologix", "rslogix", "tia portal"]},
-    {"name": "SCADA Monitoring Systems", "category": "Digital & Technology Skills",
-     "synonyms": ["scada", "scada supervision", "hmi scada", "wincc", "wonderware", "industrial hmi", "scada wincc", "intouch scada", "hmi panel commissioning"]},
-    {"name": "CNC G-Code Programming", "category": "Digital & Technology Skills",
-     "synonyms": ["cnc g-code", "g-code programming", "cnc milling", "m-code programming", "fanuc cnc", "fanuc 0i", "fanuc cnc operation", "mastercam", "cam software"]},
-    {"name": "Industrial IoT & Modbus Protocol", "category": "Digital & Technology Skills",
-     "synonyms": ["industrial iot", "iiot", "modbus", "profibus", "ethercat", "mqtt protocol", "telemetry", "mqtt", "industrial ethernet", "profinet", "fieldbus", "hart protocol", "foundation fieldbus"]},
-    {"name": "HMI Panel & Display Configuration", "category": "Digital & Technology Skills",
-     "synonyms": ["hmi panel", "hmi display", "operator panel", "touch screen hmi", "proface hmi", "siemens hmi"]},
-
-    # Emerging Industry 4.0 / Green Skills
-    {"name": "Solar PV Rooftop System Installation", "category": "Emerging Skills",
-     "synonyms": ["solar pv", "solar panel installation", "rooftop solar", "photovoltaic", "solar inverter wiring", "net metering", "solar inverter setup", "solar mounting structure", "mppt charge controller", "mppt", "anti-islanding protection", "solar i-v curve", "pm surya ghar"]},
-    {"name": "Li-ion Battery Management Systems (BMS)", "category": "Emerging Skills",
-     "synonyms": ["bms", "battery management system", "ev battery", "lithium ion pack", "battery cell balancing", "ev charging station", "thermal management ev", "ccs charging", "bharat dc-001", "state of charge soc", "state of health soh"]},
-    {"name": "Industrial Robotics Arm Operation", "category": "Emerging Skills",
-     "synonyms": ["industrial robotics", "robot arm", "fanuc robot", "kuka robotics", "cobot programming", "robotic pick and place", "teach pendant", "tcp calibration", "tool center point"]},
-    {"name": "Additive Manufacturing (3D Printing)", "category": "Emerging Skills",
-     "synonyms": ["3d printing", "additive manufacturing", "fdm printer", "stl file preparation", "slicing software", "cura slicer", "prusa slicer", "filament selection", "pla abs petg", "sla printer", "resin curing", "support structure"]},
-    {"name": "Drone Assembly & Flight Systems", "category": "Emerging Skills",
-     "synonyms": ["drone assembly", "quadcopter assembly", "flight controller", "ardupilot", "bldc motor esc", "lipo battery safety", "dgca drone", "drone technician", "drone maintenance", "payload gimbal", "gps module", "flight log analysis"]},
-    {"name": "EV High Voltage Safety", "category": "Safety Skills",
-     "synonyms": ["ev high voltage safety", "hv ppe", "high voltage ppe", "electric vehicle safety", "hv interlock", "hv gloves", "ev safety protocol"]},
-    {"name": "CAN Bus & EV Diagnostics", "category": "Digital & Technology Skills",
-     "synonyms": ["can bus", "can bus diagnostics", "obd2 ev", "obd diagnostics", "vehicle diagnostics", "ecu diagnostics", "cananalyzer"]},
-    {"name": "BLDC Motor & Traction Motor", "category": "Technical Skills",
-     "synonyms": ["bldc motor", "traction motor", "brushless dc", "bldc motor testing", "traction motor repair", "regenerative braking", "regenerative braking system"]},
-
-    # IT, Networking & Accounting
-    {"name": "Python Programming Basics", "category": "Digital & Technology Skills",
-     "synonyms": ["python", "python programming", "python coding", "python 3", "python script", "python basics"]},
-    {"name": "SQL Database Management", "category": "Digital & Technology Skills",
-     "synonyms": ["sql", "sql database", "mysql", "postgresql", "sql queries", "database management", "sqlite"]},
-    {"name": "Active Directory & Windows Admin", "category": "Digital & Technology Skills",
-     "synonyms": ["active directory", "windows ad", "domain controller", "windows server administration", "active directory windows admin"]},
-    {"name": "Linux System Administration", "category": "Digital & Technology Skills",
-     "synonyms": ["linux", "linux admin", "ubuntu linux", "centos", "bash shell", "shell scripting", "linux system administration", "linux command line"]},
-    {"name": "Tally Prime Accounting Software", "category": "Digital & Technology Skills",
-     "synonyms": ["tally", "tally prime", "tally erp", "gst accounting", "tally erp 9", "tally voucher"]},
-    {"name": "Cybersecurity Awareness", "category": "Digital & Technology Skills",
-     "synonyms": ["cybersecurity", "cyber security", "network security", "information security", "cybersecurity awareness"]},
-    {"name": "Web Development (HTML/CSS/JS)", "category": "Digital & Technology Skills",
-     "synonyms": ["html5", "css3", "javascript", "web design", "web development", "rest api", "rest api integration"]},
-
-    # Automotive & Mechanics
-    {"name": "Engine Overhauling & Servicing", "category": "Technical Skills",
-     "synonyms": ["engine overhauling", "engine servicing", "cylinder head inspection", "piston ring replacement", "four stroke engine", "ic engine", "ic engines", "diesel engine", "petrol engine"]},
-    {"name": "Wheel Alignment & Balancing", "category": "Technical Skills",
-     "synonyms": ["wheel alignment", "wheel balancing", "tyre changing", "suspension inspection", "camber caster adjustment"]},
-    {"name": "Automotive Electrical Wiring", "category": "Technical Skills",
-     "synonyms": ["auto electrical", "vehicle wiring harness", "alternator testing", "starter motor repair", "car battery testing", "auto electricals"]},
-    {"name": "Fuel Injection & OBD2 Diagnostics", "category": "Technical Skills",
-     "synonyms": ["fuel injection", "fuel injection system", "obd2", "obd diagnostics", "fuel system", "common rail diesel"]},
-    {"name": "Transmission & Differential Repair", "category": "Technical Skills",
-     "synonyms": ["transmission gearbox", "gearbox repair", "differential assembly", "clutch servicing", "manual gearbox"]},
-    {"name": "ABS & Advanced Braking Systems", "category": "Technical Skills",
-     "synonyms": ["abs system", "anti lock braking", "abs systems", "electronic braking", "ebs system"]},
-
-    # Refrigeration / HVAC
-    {"name": "Vapour Compression Refrigeration", "category": "Technical Skills",
-     "synonyms": ["vapour compression", "refrigeration cycle", "refrigerant charging", "r134a", "r410a", "refrigerant leak detection", "split ac servicing", "inverter ac"]},
-    {"name": "Brazing & HVAC Pipework", "category": "Technical Skills",
-     "synonyms": ["brazing", "silver brazing", "copper brazing", "hvac pipework", "duct layout", "ducting setup"]},
-
-    # Instrumentation & Process Control
-    {"name": "Process Transmitter Calibration", "category": "Technical Skills",
-     "synonyms": ["process transmitter", "pressure transmitter", "temperature transmitter", "flow transmitter", "rtd thermocouple", "thermocouple calibration", "rtd calibration", "loop calibrator"]},
-    {"name": "Control Valve & PID Controller", "category": "Technical Skills",
-     "synonyms": ["control valve", "control valve positioner", "pid controller", "pid tuning", "pid control", "process control valve"]},
-
-    # Plumbing & Piping
-    {"name": "Piping Layout & Joint Fitting", "category": "Technical Skills",
-     "synonyms": ["piping layout", "pipe fitting", "pvc pipe joint", "gi pipe threading", "plumbing layout", "bore well pump", "water supply pump"]},
-
-    # Safety & Quality
-    {"name": "PPE & Industrial Workshop Safety", "category": "Safety Skills",
-     "synonyms": ["ppe safety", "personal protective equipment", "workshop safety", "industrial safety standards", "5s workshop", "workshop safety standards"]},
-    {"name": "Quality Control & Inspection (ISO)", "category": "Safety Skills",
-     "synonyms": ["quality control", "quality inspection", "iso 9001", "first article inspection", "kaizen quality", "kaizen", "cmm inspection", "iso quality audit"]},
-    {"name": "Arc Flash & Electrical Safety", "category": "Safety Skills",
-     "synonyms": ["arc flash", "arc flash safety", "electrical arc flash", "arc flash protection"]},
-
-    # Soft Skills
-    {"name": "Technical Report Writing", "category": "Soft Skills",
-     "synonyms": ["report writing", "technical documentation", "shift report", "maintenance log"]},
-]
+# Engine 3 now dynamically loads the dictionary from SkillOntology.
+# See _ensure_skill_dictionary() method.
 
 # Convert to set for O(1) lookup (fixes I1)
 NEGATION_TRIGGERS: Set[str] = {
@@ -196,8 +67,11 @@ class Engine3SkillExtraction:
         """Initializes default master dictionary if DB table is empty."""
         existing_count = self.db.query(SkillDictionary).count()
         if existing_count == 0:
-            logger.info("Initializing zero-API Master Skill Dictionary (50+ Trades)...")
-            for item in INITIAL_SKILL_DICTIONARY:
+            logger.info("Initializing zero-API Master Skill Dictionary from SkillOntology...")
+            from app.ontology.skill_ontology import SkillOntology
+            ontology = SkillOntology.get()
+            exported_dict = ontology.export_for_engine3()
+            for item in exported_dict:
                 sd = SkillDictionary(
                     standard_name=item["name"],
                     category=item["category"],

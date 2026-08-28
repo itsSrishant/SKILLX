@@ -293,6 +293,10 @@ def get_trade_benchmark(course_title: str, sector: str) -> Dict[str, Any]:
         if key == "default":
             continue
         if key in combined:
-            return data
+            data_copy = dict(data)
+            data_copy["data_type"] = "BENCHMARK"
+            return data_copy
 
-    return TRADE_RESEARCH_DATA["default"]
+    default_data = dict(TRADE_RESEARCH_DATA["default"])
+    default_data["data_type"] = "BENCHMARK"
+    return default_data

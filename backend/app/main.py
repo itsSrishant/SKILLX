@@ -182,7 +182,7 @@ def run_all_engines(db: Session = Depends(get_db)):
     try:
         pipeline_state["current_engine"] = "Engine 1: Ingesting DVET 85 Trades & MSSDS Master (District-Specialised)..."
         pipeline_state["progress_percentage"] = 25
-        e1 = Engine1CourseIngestion(db).run_ingestion(limit=50)
+        e1 = Engine1CourseIngestion(db).run_ingestion()
 
         pipeline_state["current_engine"] = "Engine 2: Ingesting Job Postings (Trade-Realistic Recency Weights)..."
         pipeline_state["progress_percentage"] = 50
@@ -421,9 +421,13 @@ def get_district_summary(db: Session = Depends(get_db)):
             s for s, _ in sorted(freq.items(), key=lambda x: x[1], reverse=True)
         ][:4]
 
+        iti_count = sum(1 for c in courses_by_district[dist] if c.institute_type == "ITI")
+        mssds_count = sum(1 for c in courses_by_district[dist] if c.institute_type == "MSSDS")
         summary.append({
             "district": dist,
             "active_courses": len(courses_by_district[dist]),
+            "iti_courses": iti_count,
+            "mssds_courses": mssds_count,
             "relevant_jobs": len(jobs_by_district[dist]),
             "avg_alignment_score": avg_score,
             "top_missing_skills": top_missing,
@@ -979,3 +983,307 @@ def get_available_sectors(db: Session = Depends(get_db)):
         .all()
     )
     return {"sectors": sorted([s[0] for s in sectors if s[0]])}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEW ROUTES — SkillX Engine v2 (Ontology, Gap, Recommendations, Pathway)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/ontology/stats")
+def get_ontology_stats():
+    """
+    Return statistics about the skill ontology.
+    Useful for dashboards and data quality monitoring.
+    """
+    from app.ontology.skill_ontology import SkillOntology
+    return SkillOntology.get().stats()
+
+
+@app.get("/api/v1/ontology/skill/{skill_name}")
+def lookup_skill(skill_name: str):
+    """
+    Look up a skill by any surface form (canonical name, alias, abbreviation).
+    Returns canonical ID, full metadata, and all relationships.
+    """
+    from app.ontology.skill_normalizer import get_normalizer
+    from app.ontology.skill_ontology import SkillOntology
+    normalizer = get_normalizer()
+    ontology = SkillOntology.get()
+    result = normalizer.normalize(skill_name)
+    skill = ontology.get_by_id(result.skill_id) if result.skill_id else None
+    if not skill:
+        return {
+            "found": False,
+            "input": skill_name,
+            "normalized": result.normalized_form,
+            "method": result.method,
+            "confidence": result.confidence,
+            "suggestion": result.canonical_name,
+        }
+    return {
+        "found": True,
+        "skill_id": skill.skill_id,
+        "canonical_name": skill.canonical_name,
+        "category": skill.category,
+        "subcategory": skill.subcategory,
+        "importance": skill.importance,
+        "difficulty": skill.difficulty,
+        "skill_type": skill.skill_type,
+        "sector": skill.sector,
+        "aliases": skill.aliases,
+        "abbreviations": skill.abbreviations,
+        "parent_skill_id": skill.parent_skill_id,
+        "child_skill_ids": skill.child_skill_ids,
+        "prerequisite_skill_ids": skill.prerequisite_skill_ids,
+        "related_skill_ids": skill.related_skill_ids,
+        "normalization_method": result.method,
+        "normalization_confidence": result.confidence,
+    }
+
+
+@app.post("/api/v1/skill/match")
+def match_skills(payload: dict):
+    """
+    Explain the relationship between two skills.
+    POST body: {"source_skill": "...", "target_skill": "..."}
+    Returns full MatchEvidence with coverage credit and audit trail.
+    """
+    from app.scoring.skill_matcher import SkillMatcher
+    from app.scoring.scoring_config import DEFAULT_SCORING_CONFIG
+    source = payload.get("source_skill", "")
+    target = payload.get("target_skill", "")
+    if not source or not target:
+        raise HTTPException(status_code=400, detail="source_skill and target_skill are required")
+    matcher = SkillMatcher(DEFAULT_SCORING_CONFIG)
+    ev = matcher.match(source, target)
+    return {
+        "source_skill": ev.source_skill,
+        "target_skill": ev.target_skill,
+        "source_skill_id": ev.source_skill_id,
+        "target_skill_id": ev.target_skill_id,
+        "relationship": ev.relationship,
+        "confidence": ev.confidence,
+        "coverage_credit": ev.coverage_credit,
+        "is_match": ev.is_match(),
+        "reason": ev.reason,
+        "ontology_version": ev.ontology_version,
+    }
+
+
+@app.post("/api/v1/gap/analyze-v2")
+def run_gap_analysis_v2(
+    payload: dict = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Run the ontology-aware gap analysis (Engine 4 v2) for one or all courses.
+    POST body (optional): {"course_id": 42}
+    """
+    course_id = (payload or {}).get("course_id", None)
+    engine = Engine4SkillGapAnalysis(db)
+    return engine.run_analysis_v2(target_course_id=course_id)
+
+
+@app.get("/api/v1/gap/analyze-v2/{course_id}")
+def get_gap_analysis_v2(course_id: int, db: Session = Depends(get_db)):
+    """
+    Run ontology-aware gap analysis for a specific course.
+    Returns full GapReport with demand provenance.
+    """
+    from app.scoring.gap_engine import GapEngine
+    from app.scoring.scoring_config import DEFAULT_SCORING_CONFIG
+    from dataclasses import asdict
+    gap_engine = GapEngine(db, DEFAULT_SCORING_CONFIG)
+    report = gap_engine.analyze_course(course_id)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
+    return {
+        "course_id": report.course_id,
+        "course_title": report.course_title,
+        "district": report.district,
+        "sector": report.sector,
+        "nsqf_level": report.nsqf_level,
+        "alignment_score": report.alignment_score,
+        "total_jobs_analyzed": report.total_jobs_analyzed,
+        "n_unique_employers": report.n_unique_employers,
+        "job_tier_used": report.job_tier_used,
+        "fully_covered_skills": report.fully_covered_skills,
+        "partially_covered_skills": report.partially_covered_skills,
+        "missing_skills": report.missing_skills,
+        "critical_gaps": report.critical_gaps,
+        "top_skill_gaps": [
+            {
+                "skill": g.skill,
+                "canonical_id": g.canonical_id,
+                "category": g.category,
+                "job_count": g.job_count,
+                "employer_count": g.employer_count,
+                "demand_pct": g.demand_pct,
+                "coverage_credit": g.coverage_credit,
+                "gap_tier": g.gap_tier,
+                "representative_employers": g.representative_employers,
+            }
+            for g in report.top_skill_gaps
+        ],
+        "core_skill_coverage_pct": report.core_skill_coverage_pct,
+        "emerging_skill_coverage_pct": report.emerging_skill_coverage_pct,
+        "scoring_model_version": report.scoring_model_version,
+        "gap_engine_version": report.gap_engine_version,
+        "execution_latency_ms": report.execution_latency_ms,
+    }
+
+
+@app.get("/api/v1/recommendations")
+def get_recommendations(
+    district: str,
+    sector: Optional[str] = None,
+    target_skills: Optional[str] = None,  # comma-separated
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    """
+    Gap-closure-optimized course recommendations for a student.
+
+    Parameters:
+      district: Student's district
+      sector: Optional sector filter
+      target_skills: Optional comma-separated target skill names
+      limit: Max results (default 10)
+    """
+    from app.scoring.recommendation_engine import RecommendationEngine
+    skill_list = [s.strip() for s in target_skills.split(",")] if target_skills else None
+    engine = RecommendationEngine(db)
+    result = engine.recommend_for_student(
+        district=district,
+        target_skills=skill_list,
+        sector=sector,
+        limit=limit,
+    )
+    return {
+        "district": result.district,
+        "sector_filter": result.sector_filter,
+        "target_skills": result.target_skills,
+        "total_courses_evaluated": result.total_courses_evaluated,
+        "district_top_demanded_skills": result.district_top_demanded_skills,
+        "recommendations": [
+            {
+                "rank": r.recommendation_rank,
+                "course_id": r.course_id,
+                "course_title": r.course_title,
+                "institute_type": r.institute_type,
+                "sector": r.sector,
+                "district": r.district,
+                "nsqf_level": r.nsqf_level,
+                "duration_months": r.duration_months,
+                "alignment_score": r.alignment_score,
+                "gap_closure_score": r.gap_closure_score,
+                "fully_covered_skills": r.fully_covered_skills,
+                "missing_skills": r.missing_skills,
+                "bridge_packs_available": r.bridge_packs_available,
+                "expected_salary_range": r.expected_salary_range,
+                "salary_data_type": r.salary_data_type,
+                "recommendation_rationale": r.recommendation_rationale,
+                "bridge_pack_previews": r.bridge_pack_previews,
+            }
+            for r in result.recommendations
+        ],
+        "engine_version": result.engine_version,
+    }
+
+
+@app.get("/api/v1/pathway/roles")
+def get_career_pathway_roles():
+    """Return list of all available career pathway target roles."""
+    from app.scoring.pathway_engine import ROLE_SKILL_MAP, PathwayEngine
+    return {
+        "available_roles": list(ROLE_SKILL_MAP.keys()),
+        "total_roles": len(ROLE_SKILL_MAP),
+    }
+
+
+@app.post("/api/v1/pathway/plan")
+def plan_career_pathway(payload: dict, db: Session = Depends(get_db)):
+    """
+    Plan a career pathway to a target role.
+    POST body: {
+        "target_role": "EV Technician",
+        "district": "Pune",
+        "current_skills": ["Electrical Safety", "Motor Winding"]
+    }
+    """
+    from app.scoring.pathway_engine import PathwayEngine
+    target_role = payload.get("target_role")
+    district = payload.get("district", "Pune")
+    current_skills = payload.get("current_skills", [])
+    if not target_role:
+        raise HTTPException(status_code=400, detail="target_role is required")
+    engine = PathwayEngine(db)
+    pathway = engine.plan(
+        target_role=target_role,
+        district=district,
+        current_skill_surfaces=current_skills,
+    )
+    return {
+        "target_role": pathway.target_role,
+        "current_skills": pathway.current_skills,
+        "target_skills": pathway.target_skills,
+        "gap_skills": pathway.gap_skills,
+        "pathway_summary": pathway.pathway_summary,
+        "total_estimated_months": pathway.total_estimated_months,
+        "total_bridge_hours_needed": pathway.total_bridge_hours_needed,
+        "stages": [
+            {
+                "stage_number": s.stage_number,
+                "stage_name": s.stage_name,
+                "skills_to_acquire": s.skills_to_acquire,
+                "recommended_courses": s.recommended_courses,
+                "bridge_packs_needed": s.bridge_packs_needed,
+                "estimated_months": s.estimated_months,
+                "expected_salary_milestone": s.expected_salary_milestone,
+                "salary_data_type": s.salary_data_type,
+            }
+            for s in pathway.stages
+        ],
+        "engine_version": pathway.engine_version,
+    }
+
+
+@app.get("/api/v1/salary/{course_id}")
+def get_salary_context(course_id: int, db: Session = Depends(get_db)):
+    """
+    Return labeled salary data for a course.
+    Always includes data_type (BENCHMARK/OBSERVED/UNAVAILABLE) and disclaimer.
+    """
+    from app.salary.salary_model import SalaryModel
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
+    model = SalaryModel()
+    return {
+        "course_id": course.id,
+        "course_title": course.title,
+        "sector": course.sector,
+        **model.get_with_context(course.title, course.sector),
+    }
+
+
+@app.get("/api/v1/performance/index-stats")
+def get_index_stats(db: Session = Depends(get_db)):
+    """
+    Return statistics about the in-memory skill performance index.
+    Builds the index if not already built.
+    """
+    from app.performance.indexes import get_index, rebuild_index
+    index = get_index(db) or rebuild_index(db)
+    return index.stats()
+
+
+@app.post("/api/v1/performance/rebuild-index")
+def rebuild_performance_index(db: Session = Depends(get_db)):
+    """Force rebuild of the skill performance index."""
+    from app.performance.indexes import rebuild_index
+    index = rebuild_index(db)
+    return {
+        "status": "rebuilt",
+        **index.stats(),
+    }

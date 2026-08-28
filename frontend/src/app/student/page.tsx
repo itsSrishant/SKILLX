@@ -114,7 +114,7 @@ function StudentInner() {
   return (
     <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: C.text }}>
       {/* Top Header */}
-      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", sticky: "top", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
