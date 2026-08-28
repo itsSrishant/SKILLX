@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Security
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Dict, List, Any, Optional
-
+from collections import defaultdict
 from app.db.database import get_db
 from app.db.models import Course, JobPosting, ExtractedSkill, SkillGapAnalysis, SkillDictionary, BridgePackRecommendation
 from app.engines.engine1_course_ingestion import Engine1CourseIngestion
