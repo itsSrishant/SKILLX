@@ -597,35 +597,46 @@ function DashboardInner() {
 
       <main style={{ marginLeft:240, flex:1, padding:"28px 32px", overflowX:"hidden" }}>
 
-        {/* Overview */}
+        {/* Overview Header & Controls */}
         <div id="overview">
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24, flexWrap:"wrap", gap:16 }}>
             <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                 <button onClick={()=>{setIsNavigatingHome(true);router.push("/");}} disabled={isNavigatingHome}
-                  style={{ padding:"4px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:"white", color:C.textSub, fontSize:12, fontWeight:600, cursor:isNavigatingHome?"wait":"pointer", display:"inline-flex", alignItems:"center", gap:4, boxShadow:"0 1px 2px rgba(0,0,0,0.03)", transition:"all 0.2s" }}>
-                  {isNavigatingHome?<><span style={{fontSize:11,animation:"spin 1s linear infinite"}}>⏳</span><span>Returning...</span></>:<><span>←</span>Landing Page</>}
+                  style={{ padding:"5px 12px", borderRadius:999, border:`1px solid ${C.border}`, background:"white", color:C.textSub, fontSize:12, fontWeight:700, cursor:isNavigatingHome?"wait":"pointer", display:"inline-flex", alignItems:"center", gap:6, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)" }}
+                  onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.borderColor = C.cyanMid; (e.currentTarget as HTMLButtonElement).style.color = C.cyan; }}
+                  onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.borderColor = C.border; (e.currentTarget as HTMLButtonElement).style.color = C.textSub; }}
+                >
+                  {isNavigatingHome?<><span style={{fontSize:11,animation:"spin 1s linear infinite"}}>⏳</span><span>Returning...</span></>:<><span>←</span> Landing Page</>}
                 </button>
               </div>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text, fontFamily:"'Playfair Display',serif" }}>{t.adminPortal}</div>
+              <div style={{ fontSize:24, fontWeight:900, color:C.text, fontFamily:"'Playfair Display',serif" }}>{t.adminPortal}</div>
               <div style={{ fontSize:13, color:C.textMuted, marginTop:2 }}>{t.appSubtitle} · Real-Time · {districts.length} Districts · PS 26134</div>
             </div>
-            <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+
+            <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+              <Link href="/student" className="btn-light" style={{ padding:"8px 18px", fontSize:13, borderRadius:999 }}>
+                🎓 Student Portal
+              </Link>
+
               <button id="top-skill-dict-btn" onClick={()=>setShowSkillDict(true)}
-                style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.25s" }}
-                onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanMid}
-                onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanLight}
+                style={{ padding:"8px 16px", borderRadius:999, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow:"0 1px 3px rgba(8,145,178,0.08)" }}
+                onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.cyanMid; }}
+                onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.cyanLight; }}
               ><span>📖</span><span>{t.skillDictionary}</span></button>
+
               <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
                 <select id="language-selector" value={lang} onChange={e=>setLang(e.target.value as "en"|"mr"|"hi")}
-                  style={{ appearance:"none", WebkitAppearance:"none", padding:"8px 32px 8px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:600, color:C.text, cursor:"pointer", outline:"none", transition:"all 0.2s" }}>
-                  <option value="en">English</option><option value="mr">मराठी</option><option value="hi">हिंदी</option>
+                  style={{ appearance:"none", WebkitAppearance:"none", padding:"8px 32px 8px 14px", borderRadius:999, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:700, color:C.text, cursor:"pointer", outline:"none", transition:"all 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}
+                >
+                  <option value="en">🌐 English</option><option value="mr">🌐 मराठी</option><option value="hi">🌐 हिंदी</option>
                 </select>
                 <span style={{ position:"absolute", right:12, pointerEvents:"none", fontSize:10, color:C.textMuted }}>▼</span>
               </div>
-              <button id="run-all-btn" onClick={runEngines} disabled={engineRunning}
-                style={{ padding:"9px 20px", borderRadius:10, border:"none", background:`linear-gradient(135deg,${C.orange},#ea580c)`, color:"white", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:`0 4px 16px rgba(249,115,22,0.25)`, opacity:engineRunning?0.7:1, display:"flex", alignItems:"center", gap:8, transition:"all 0.25s" }}>
-                {engineRunning?<>⚡ Running...</>:<>⚡ {t.runEngines}</>}
+
+              <button id="run-all-btn" onClick={runEngines} disabled={engineRunning} className="btn-dark"
+                style={{ padding:"9px 20px", fontSize:13, borderRadius:999, opacity:engineRunning?0.7:1 }}>
+                {engineRunning?<>⚡ Running Pipeline...</>:<>⚡ {t.runEngines}</>}
               </button>
             </div>
           </div>

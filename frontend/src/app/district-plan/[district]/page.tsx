@@ -151,14 +151,27 @@ export default function DistrictPlanPage() {
       `}</style>
 
       {/* Nav Bar */}
-      <div className="no-print" style={{background:"white",borderBottom:`1px solid ${C.border}`,padding:"14px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+      <div className="no-print" style={{background:"white",borderBottom:`1px solid ${C.border}`,padding:"14px 36px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <button onClick={()=>router.push("/dashboard")} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:"white",color:C.text,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>← Dashboard</button>
+          <button onClick={()=>router.push("/dashboard")} className="btn-dark" style={{ padding: "9px 20px", fontSize: 13, borderRadius: 999 }}>
+            ← Dashboard
+          </button>
           <div style={{fontSize:13,color:C.textMuted}}>/ District Plans / <strong style={{color:C.text}}>{data.district}</strong></div>
         </div>
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={fetchProposal} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.orange}`,background:C.orangeLight,color:C.orange,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>📜 NCVET Memo Proposal</button>
-          <button onClick={()=>window.print()} style={{padding:"8px 18px",borderRadius:8,border:"none",background:`linear-gradient(135deg,${C.purple},${C.cyan})`,color:"white",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 Export PDF</button>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <Link href="/student" className="btn-light" style={{ padding: "8px 18px", fontSize: 13, borderRadius: 999 }}>
+            🎓 Student Portal
+          </Link>
+          <button onClick={fetchProposal}
+            style={{padding:"9px 20px",borderRadius:999,border:`1px solid ${C.orangeMid}`,background:C.orangeLight,color:C.orange,fontSize:13,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:6,boxShadow:"0 1px 3px rgba(249,115,22,0.1)",transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"}}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.background=C.orangeMid; }}
+            onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="none"; (e.currentTarget as HTMLButtonElement).style.background=C.orangeLight; }}
+          >📜 NCVET Memo Proposal</button>
+          <button onClick={()=>window.print()}
+            style={{padding:"9px 22px",borderRadius:999,border:"none",background:`linear-gradient(135deg,${C.purple},${C.cyan})`,color:"white",fontWeight:800,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6,boxShadow:"0 4px 14px rgba(124,58,237,0.25)",transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"}}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; }}
+            onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="none"; }}
+          >📄 Export PDF</button>
         </div>
       </div>
 

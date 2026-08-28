@@ -114,11 +114,11 @@ function StudentInner() {
   return (
     <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: C.text }}>
       {/* Top Header */}
-      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", sticky: "top", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${C.orange}, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, color: "white" }}>S</div>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: `linear-gradient(135deg, ${C.orange}, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, color: "white", boxShadow: "0 4px 14px rgba(249,115,22,0.3)" }}>S</div>
               <div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 800, color: C.text }}>SkillX</div>
                 <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, letterSpacing: "0.08em" }}>STUDENT PORTAL</div>
@@ -126,12 +126,15 @@ function StudentInner() {
             </Link>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <select value={lang} onChange={e => setLang(e.target.value as "en" | "mr" | "hi")}
-              style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "white", fontSize: 13, fontWeight: 600, color: C.text, cursor: "pointer" }}>
-              <option value="en">English</option><option value="mr">मराठी</option><option value="hi">हिंदी</option>
-            </select>
-            <Link href="/dashboard" style={{ padding: "8px 16px", borderRadius: 10, background: C.cyanLight, color: C.cyan, border: `1px solid ${C.cyanMid}`, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-              Govt Admin Console →
+            <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+              <select value={lang} onChange={e => setLang(e.target.value as "en" | "mr" | "hi")}
+                style={{ appearance: "none", WebkitAppearance: "none", padding: "8px 30px 8px 14px", borderRadius: 12, border: `1px solid ${C.border}`, background: "white", fontSize: 13, fontWeight: 700, color: C.text, cursor: "pointer", outline: "none", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <option value="en">🌐 English</option><option value="mr">🌐 मराठी</option><option value="hi">🌐 हिंदी</option>
+              </select>
+              <span style={{ position: "absolute", right: 12, pointerEvents: "none", fontSize: 10, color: C.textMuted }}>▼</span>
+            </div>
+            <Link href="/dashboard" className="btn-dark" style={{ padding: "9px 22px", fontSize: 13, borderRadius: 999 }}>
+              Enter Dashboard →
             </Link>
           </div>
         </div>
