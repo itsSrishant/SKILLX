@@ -35,3 +35,6 @@ build/
 
 # macOS
 .DS_Store
+
+# Firebase Service Account Keys
+*firebase-adminsdk*.json

@@ -333,13 +333,35 @@ def _find_best_template(skill_name: str) -> dict:
 def _generate_llm_bridge_pack(
     missing_skills: list, course_title: str, gemini_api_key: str
 ) -> list:
-    """Calls Gemini LLM API with structured prompt. Returns list of module dicts."""
+    """Calls Gemini LLM API with structured JSON output mode, multi-key rotation & retries."""
+    # Gather potential keys (either passed key or comma-separated GEMINI_API_KEYS)
+    keys_env = os.environ.get("GEMINI_API_KEYS", "").strip()
+    keys_to_try = [k.strip() for k in keys_env.split(",") if k.strip()]
+    if gemini_api_key and gemini_api_key not in keys_to_try:
+        keys_to_try.insert(0, gemini_api_key)
+
+    if not keys_to_try:
+        return []
+
     try:
         import google.generativeai as genai
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-        genai.configure(api_key=gemini_api_key)
         llm_model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
-        model = genai.GenerativeModel(llm_model)
+
+        # Safety settings tuned for technical & industrial terms
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        # Native JSON response schema configuration
+        generation_config = {
+            "response_mime_type": "application/json",
+            "temperature": 0.2,
+        }
 
         prompt = f"""You are an expert Maharashtra vocational curriculum designer for DVET ITI and MSSDS courses.
 
@@ -349,7 +371,7 @@ Missing Skills (Identified by SkillX Gap Analysis Engine):
 
 Design a structured 20-hour modular Skill Bridge Pack to bridge these gaps.
 
-Return ONLY a valid JSON array matching this format (no markdown fences, no extra text):
+Return a valid JSON array matching this format:
 [
   {{
     "missing_skill": "<skill name>",
@@ -374,16 +396,40 @@ Return ONLY a valid JSON array matching this format (no markdown fences, no extr
   }}
 ]"""
 
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        modules = json.loads(raw)
-        return modules
+        for api_key in keys_to_try:
+            for attempt in range(2):  # Retry once per key on failure
+                try:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(
+                        model_name=llm_model,
+                        generation_config=generation_config,
+                        safety_settings=safety_settings,
+                    )
+
+                    response = model.generate_content(prompt)
+                    raw = response.text.strip()
+                    if raw.startswith("```"):
+                        raw = raw.split("```")[1]
+                        if raw.startswith("json"):
+                            raw = raw[4:]
+
+                    modules = json.loads(raw)
+                    if isinstance(modules, list) and len(modules) > 0:
+                        # Post-process validation: Ensure mandatory fields & 20-hour structure
+                        for m in modules:
+                            if not m.get("duration_hours"):
+                                m["duration_hours"] = 20
+                            if not m.get("nsqf_level"):
+                                m["nsqf_level"] = 5
+                        logger.info(f"Gemini LLM successfully generated {len(modules)} bridge modules.")
+                        return modules
+                except Exception as ex:
+                    logger.warning(f"Attempt {attempt+1} with Gemini key failed: {ex}")
+                    time.sleep(0.5)
+
+        return []
     except Exception as e:
-        logger.warning(f"Gemini API call failed: {e}. Falling back to rule-based.")
+        logger.warning(f"Gemini API initialization failed: {e}. Falling back to rule-based.")
         return []
 
 
@@ -684,6 +730,7 @@ class Engine5LLMBridgePack:
         return {
             "course_id": course_id,
             "course_title": course.title,
+            "course_description": course.description or "No description provided.",
             "institute_type": course.institute_type,
             "district": course.district,
             "sector": course.sector or "Industrial Technology",

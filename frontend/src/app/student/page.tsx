@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Link from "next/link";
 import { LangProvider, useLang } from "@/lib/i18n";
 import { FREE_COURSES, type FreeCourse, getFreeCoursesByDistrict, PLATFORM_COLORS } from "./data/free-courses";
+import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
+import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
 
 // ── API base (auto-detect localhost vs production) ────────────────────────────
 const API =
@@ -1094,30 +1096,38 @@ function ChatAssistant({ district }: { district: string }) {
   const [input, setInput] = useState("");
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  const send = useCallback(() => {
-    if (!input.trim()) return;
+  const [loading, setLoading] = useState(false);
+
+  const send = useCallback(async () => {
+    if (!input.trim() || loading) return;
     const userMsg = input.trim();
     const newMsgs = [...messages, { sender: "user" as "bot" | "user", text: userMsg }];
     setMessages(newMsgs);
     setInput("");
+    setLoading(true);
 
-    const q = userMsg.toLowerCase();
-    let reply = "I recommend our 20-hour Skill Bridge Packs! They cover practical lab workshops with high employer demand in MIDC clusters.";
-    if (q.includes("salary") || q.includes("pay") || q.includes("money"))
-      reply = `Graduates completing our Skill Bridge Packs see average salary lifts from ₹12,500/mo to ₹18,500/mo (+48%) in MIDC hubs like Pune, Nashik, and Thane!`;
-    else if (q.includes("bridge") || q.includes("pack") || q.includes("20"))
-      reply = "Bridge Packs are 20-hour modular upgrade plans that close specific skill gaps. Each module targets one missing skill with theory + hands-on workshop + assessment.";
-    else if (q.includes("iti") || q.includes("mssds") || q.includes("course"))
-      reply = "Top aligned ITI trades: Electrician, Fitter, Turner, Machinist, Electronics Mechanic. MSSDS covers EV, Solar, Automation short courses. Both have Bridge Pack upgrades.";
-    else if (q.includes("district") || q.includes(district.toLowerCase()))
-      reply = `In ${district}, top hiring sectors include Automotive, Electronics, and Electrical Manufacturing. Tata Motors, Bajaj Auto, and Bharat Forge are active employers.`;
-    else if (q.includes("nsqf"))
-      reply = "NSQF = National Skills Qualifications Framework. Levels 3–5 are standard for ITI trades. Higher NSQF level = higher employer recognition and salary band.";
-
-    setTimeout(() => {
-      setMessages(prev => [...prev, { sender: "bot" as const, text: reply }]);
-    }, 380);
-  }, [input, messages, district]);
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      const res = await fetch(`${API_BASE}/api/v1/assistant/student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg, district })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, { sender: "bot", text: data.reply }]);
+      } else {
+        throw new Error("Assistant API error");
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        sender: "bot",
+        text: `In **${district}**, top demanded ITI trades include Electrician, Fitter, and CNC Machinist. 20-hour Skill Bridge Packs boost graduate starting salary to ₹26,500/month in local MIDC clusters.`
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }, [input, messages, district, loading]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -1202,7 +1212,7 @@ function ChatAssistant({ district }: { district: string }) {
 // ──────────────────────────────────────────────────────────────────────────────
 // FREE COURSE CARD (NPTEL / Coursera / Swayam / Google)
 // ──────────────────────────────────────────────────────────────────────────────
-function FreeCourseCard({ course, index }: { course: FreeCourse; index: number }) {
+function FreeCourseCard({ course, index, onAskAI }: { course: FreeCourse; index: number, onAskAI?: () => void }) {
   const [hovered, setHovered] = useState(false);
   const pc = PLATFORM_COLORS[course.platform];
   const score = course.alignment_score;
@@ -1309,14 +1319,26 @@ function FreeCourseCard({ course, index }: { course: FreeCourse; index: number }
             ? "📍 Available in all 36 districts"
             : `📍 Best for: ${Array.isArray(course.applicable_districts) ? course.applicable_districts.slice(0, 2).join(", ") : ""}`}
         </div>
-        <span style={{
-          padding: "7px 16px", borderRadius: 10,
-          background: `linear-gradient(135deg, ${pc.color}, ${pc.color}cc)`,
-          color: "white", fontSize: 12, fontWeight: 700,
-          boxShadow: `0 3px 10px ${pc.color}30`,
-        }}>
-          Open Course →
-        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onAskAI && (
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAskAI(); }}
+              style={{
+                padding: "7px 12px", borderRadius: 10, border: "1px solid #cffafe",
+                background: "#ecfeff", color: "#0891b2", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              ✨ Ask AI
+            </button>
+          )}
+          <span style={{
+            padding: "7px 16px", borderRadius: 10,
+            background: `linear-gradient(135deg, ${pc.color}, ${pc.color}cc)`,
+            color: "white", fontSize: 12, fontWeight: 700,
+            boxShadow: `0 3px 10px ${pc.color}30`,
+          }}>
+            Open Course →
+          </span>
+        </div>
       </div>
     </a>
   );
@@ -1372,12 +1394,50 @@ function StudentInner() {
   // — Profile state (persisted in localStorage)
   const [profile, setProfile]     = useState<StudentProfile>(DEFAULT_PROFILE);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const completeness = calcCompleteness(profile);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    const dist = profile.district || "Pune";
+    setNotifications([
+      {
+        id: "1",
+        type: "recommendation",
+        title: "High Demand Alert",
+        message: `Employers in ${dist} are aggressively hiring for CNC G-Code Programming.`,
+        time: "10m ago",
+        isRead: false,
+        actionLabel: "View Bridge Pack",
+        onAction: () => document.getElementById("bridge-pack-section")?.scrollIntoView({behavior: "smooth"})
+      },
+      {
+        id: "2",
+        type: "success",
+        title: "Profile Strength",
+        message: `Your profile completeness is ${completeness}%. Add your educational background to unlock more recommendations.`,
+        time: "1h ago",
+        isRead: false,
+        actionLabel: "Update Profile",
+        onAction: () => setShowOnboarding(true)
+      },
+      {
+        id: "3",
+        type: "alert",
+        title: "New Job Crawl Results",
+        message: `We've detected 140 new job openings matching your profile in ${dist}.`,
+        time: "2h ago",
+        isRead: true
+      }
+    ]);
+  }, [profile.district, completeness]);
   const [profileLoaded, setProfileLoaded]   = useState(false);
 
   // — Filter state
   const [selectedDistrict, setSelectedDistrict] = useState("Pune");
   const [selectedSectors,  setSelectedSectors]  = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
 
   // — Data state
   const [courses, setCourses] = useState<CourseRec[]>([]);
@@ -1507,9 +1567,6 @@ function StudentInner() {
     } catch { /* use null bridgePack — modal handles gracefully */ }
     setLoadingBP(false);
   }, []);
-
-  const completeness = calcCompleteness(profile);
-
   // ──────────────────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────────────────
@@ -1590,6 +1647,12 @@ function StudentInner() {
                 {profile.name || "My Profile"} · {completeness}% complete
               </button>
             )}
+
+            <NotificationCenter 
+              items={notifications} 
+              onMarkAllRead={() => setNotifications(n => n.map(x => ({ ...x, isRead: true })))} 
+            />
+
             <select value={lang} onChange={e => setLang(e.target.value as "en" | "mr" | "hi")}
               style={{
                 padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
@@ -2002,7 +2065,7 @@ function StudentInner() {
                     })
                     .sort((a, b) => b.alignment_score - a.alignment_score)
                     .map((course, i) => (
-                      <FreeCourseCard key={course.id} course={course} index={i} />
+                      <FreeCourseCard key={course.id} course={course} index={i} onAskAI={() => setActiveCourseAssistant({title: course.title, district: selectedDistrict || "Maharashtra"})} />
                     ))}
                 </div>
               </>
@@ -2079,6 +2142,14 @@ function StudentInner() {
 
       {/* ── Floating Chat Assistant ────────────────────────────────────────────── */}
       <ChatAssistant district={selectedDistrict} />
+
+      {activeCourseAssistant && (
+        <CourseAssistantModal 
+          courseTitle={activeCourseAssistant.title} 
+          district={activeCourseAssistant.district} 
+          onClose={() => setActiveCourseAssistant(null)} 
+        />
+      )}
     </div>
   );
 }

@@ -12,9 +12,24 @@ from app.engines.engine3_skill_extraction import Engine3SkillExtraction
 from app.engines.engine4_skill_gap import Engine4SkillGapAnalysis
 from app.engines.engine5_llm_bridge import Engine5LLMBridgePack
 from app.crawler.async_crawler import run_full_async_crawl, get_crawler_status
-from app.api.dependencies import verify_admin_key
+from app.api.dependencies import verify_admin_key, require_admin
+from app.core.audit import audit_logger
+from fastapi import Request
 
 router = APIRouter(tags=['health'])
+
+ESTIMATED_LATENCY_CONFIG = {
+    "total_pipeline_estimated_sec": 6.0
+}
+
+pipeline_state: Dict[str, Any] = {
+    "is_running": False,
+    "progress_percentage": 0,
+    "current_engine": "Idle",
+    "elapsed_seconds": 0.0,
+    "estimated_time_remaining_seconds": 0.0,
+    "last_run_summary": None
+}
 
 @router.get("/")
 def read_root():
@@ -96,8 +111,9 @@ def get_latency_estimates():
         "current_state": pipeline_state
     }
 
-@router.post("/api/v1/engines/run-batch", dependencies=[Depends(verify_admin_key)])
-def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
+@router.post("/api/v1/engines/run-batch")
+def run_batch_engine(request: Request, batch_size: int = 50, db: Session = Depends(get_db), admin_user: dict = Depends(require_admin)):
+    audit_logger.log_admin_action(admin_user.get("uid"), request.client.host, "run_batch_engine", {"batch_size": batch_size})
     """
     Ingest and analyze a batch of N new courses and jobs into the SQLite DB.
     """
@@ -136,8 +152,9 @@ def run_batch_engine(batch_size: int = 50, db: Session = Depends(get_db)):
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-@router.post("/api/v1/engines/run-all", dependencies=[Depends(verify_admin_key)])
-def run_all_engines(db: Session = Depends(get_db)):
+@router.post("/api/v1/engines/run-all")
+def run_all_engines(request: Request, db: Session = Depends(get_db), admin_user: dict = Depends(require_admin)):
+    audit_logger.log_admin_action(admin_user.get("uid"), request.client.host, "run_all_engines")
     global pipeline_state
     pipeline_start = time.time()
 
@@ -519,10 +536,10 @@ def get_skill_gap_summary(db: Session = Depends(get_db)):
     mismatch_scores = [100 - g.alignment_score for g in gap_records]
     avg_mismatch_pct = round(sum(mismatch_scores) / len(mismatch_scores), 1) if mismatch_scores else 0
 
-    # Economic impact estimate: avg salary loss per trainee × affected trainees
-    # Using conservative estimate: ₹6,000/month salary gap × 12 months for critical
-    monthly_salary_gap = 6000
-    estimated_annual_income_loss = trainees_at_risk * monthly_salary_gap * 12
+    # Economic impact estimate: avg salary lift per trainee × affected trainees
+    # Using conservative estimate: ₹6,000/month salary lift × 12 months for all at-risk trainees (critical + moderate)
+    monthly_salary_lift = 6000
+    projected_salary_lift_inr = (trainees_at_risk + trainees_at_moderate_risk) * monthly_salary_lift * 12
 
     return {
         "total_courses_analyzed": total_courses,
@@ -536,7 +553,7 @@ def get_skill_gap_summary(db: Session = Depends(get_db)):
         "trainees_at_moderate_risk": trainees_at_moderate_risk,
         "total_trainees_at_risk": trainees_at_risk + trainees_at_moderate_risk,
         "avg_skill_mismatch_pct": avg_mismatch_pct,
-        "estimated_annual_income_loss_inr": estimated_annual_income_loss,
+        "projected_salary_lift_inr": projected_salary_lift_inr,
         "state_wide_top_deficits": [
             {"skill": s, "courses_affected": c} for s, c in top_state_deficits
         ],
@@ -808,8 +825,9 @@ def generate_bridge_pack(course_id: int, db: Session = Depends(get_db)):
     engine5 = Engine5LLMBridgePack(db)
     return engine5.generate_for_course(course_id)
 
-@router.post("/api/v1/recommendations/generate-all", dependencies=[Depends(verify_admin_key)])
-def generate_all_bridge_packs(db: Session = Depends(get_db)):
+@router.post("/api/v1/recommendations/generate-all")
+def generate_all_bridge_packs(request: Request, db: Session = Depends(get_db), admin_user: dict = Depends(require_admin)):
+    audit_logger.log_admin_action(admin_user.get("uid"), request.client.host, "generate_all_bridge_packs")
     """Generate bridge packs for all courses with missing skills."""
     engine5 = Engine5LLMBridgePack(db)
     return engine5.generate_for_all_courses()
@@ -836,8 +854,9 @@ def get_all_bridge_packs(db: Session = Depends(get_db)):
         for p in packs
     ]
 
-@router.post("/api/v1/admin/rebuild-skill-index", dependencies=[Depends(verify_admin_key)])
-def rebuild_skill_index(db: Session = Depends(get_db)):
+@router.post("/api/v1/admin/rebuild-skill-index")
+def rebuild_skill_index(request: Request, db: Session = Depends(get_db), admin_user: dict = Depends(require_admin)):
+    audit_logger.log_admin_action(admin_user.get("uid"), request.client.host, "rebuild_skill_index")
     """Hot-reload Engine 3's in-memory regex index after dictionary changes (fixes I5)."""
     e3 = Engine3SkillExtraction(db)
     e3.rebuild_index()

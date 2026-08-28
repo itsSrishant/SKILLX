@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
 
 const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "3000") ? "http://localhost:8000" : "");
 
@@ -83,6 +84,7 @@ interface BridgePackItem {
 interface BridgePackData {
   course_id: number;
   course_title: string;
+  course_description?: string;
   district: string;
   sector?: string;
   institute_type: string;
@@ -109,11 +111,26 @@ interface BridgePackData {
 // ── Goal Circle Loader (Smooth Progress Transition) ────────────────────────────
 function GoalCircleLoader({ text }: { text?: string }) {
   const [progress, setProgress] = useState(15);
+  const [subText, setSubText] = useState("Initializing Engine...");
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 15 + 10)));
-    }, 110);
+      setProgress((prev) => {
+        // Slow down significantly as it gets higher to match LLM latency (~10s)
+        const increment = prev < 50 ? Math.floor(Math.random() * 8 + 4) : 
+                          prev < 80 ? Math.floor(Math.random() * 4 + 2) : 
+                          prev < 95 ? 1 : 0;
+        
+        const next = prev >= 95 ? 95 : prev + increment;
+        
+        if (next > 20 && next < 45) setSubText("Analyzing Local Job Data...");
+        else if (next >= 45 && next < 75) setSubText("Consulting Gemini AI for Curriculum...");
+        else if (next >= 75 && next < 90) setSubText("Calculating Employer Citations & Salary Lifts...");
+        else if (next >= 90) setSubText("Finalizing Fact-Driven Plan... Please wait.");
+        
+        return next;
+      });
+    }, 400); // 400ms tick for much slower, realistic pacing
     return () => clearInterval(timer);
   }, []);
 
@@ -146,10 +163,10 @@ function GoalCircleLoader({ text }: { text?: string }) {
         </div>
       </div>
       <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 4, letterSpacing: "-0.01em" }}>
-        {text || "Generating Fact-Driven Skill Upgrade Plan..."}
+        {text || "Generating Skill Upgrade Plan..."}
       </div>
-      <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>
-        Calculating Employer Citations, Salary Lifts & GeM Specs
+      <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500, minHeight: 18 }}>
+        {subText}
       </div>
     </div>
   );
@@ -170,6 +187,7 @@ export default function BridgePackPage() {
   const [expandedModules, setExpandedModules] = useState<Record<number, boolean>>({ 0: true });
   const [showExecSummary, setShowExecSummary] = useState(false);
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     router.prefetch("/dashboard");
@@ -313,6 +331,30 @@ export default function BridgePackPage() {
           >
             🖨 Print / Download PDF
           </button>
+          <a
+            href={`https://dvet.gov.in/registration/${data?.course_id || ""}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: "10px 20px", borderRadius: 10, border: `1px solid ${C.green}`,
+              background: C.greenLight, color: C.green, fontSize: 13, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 6px rgba(19,136,8,0.08)",
+              textDecoration: "none"
+            }}
+          >
+            🏛 Official Gov Registration
+          </a>
+          <button
+            onClick={() => setIsChatOpen(true)}
+            style={{
+              padding: "10px 20px", borderRadius: 10, border: "none",
+              background: `linear-gradient(135deg, ${C.purple}, #c084fc)`, color: "white", 
+              fontSize: 13, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(147, 51, 234, 0.2)",
+            }}
+          >
+            ✨ Ask AI
+          </button>
         </div>
       </div>
 
@@ -352,9 +394,18 @@ export default function BridgePackPage() {
                 <h1 style={{ fontSize: 26, fontWeight: 800, fontFamily: "'Playfair Display', serif", marginBottom: 6, color: "white" }}>
                   {data.course_title}
                 </h1>
-                <div style={{ fontSize: 13, color: "#cbd5e1" }}>
-                  Sector: <strong style={{ color: "white" }}>{data.sector || "Industrial Technology"}</strong> · Employer Cluster: <strong style={{ color: C.orangeMid }}>{employers}</strong>
+                <div style={{ fontSize: 13, color: "#cbd5e1", marginBottom: 12 }}>
+                  Sector: <strong style={{ color: "white" }}>{data.sector}</strong> · Employer Cluster: <strong style={{ color: "white" }}>{employers}</strong>
                 </div>
+                {data.course_description && (
+                  <div style={{
+                    fontSize: 13, color: "#94a3b8", lineHeight: 1.6, maxWidth: 800,
+                    background: "rgba(255,255,255,0.05)", padding: "12px 16px", borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.1)"
+                  }}>
+                    {data.course_description}
+                  </div>
+                )}
               </div>
 
               <div style={{ textAlign: "right" }}>
@@ -686,6 +737,14 @@ export default function BridgePackPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {isChatOpen && data && (
+        <CourseAssistantModal 
+          courseTitle={data.course_title} 
+          district={data.district} 
+          onClose={() => setIsChatOpen(false)} 
+        />
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { EnterDashboardButton } from "./Navbar";
 import { Landmark, Cpu, Target, Briefcase } from "lucide-react";
 
-export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
+export const Hero = forwardRef<HTMLDivElement>((_, ref) => {
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {/* 1. Hero Section */}

@@ -3,20 +3,34 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Cpu, Workflow, ClipboardList } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 export function EnterDashboardButton({ className, style, label }: { className?: string; style?: React.CSSProperties; label: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    router.prefetch("/dashboard");
-  }, [router]);
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const targetRoute = user ? "/dashboard" : "/login";
+  const displayLabel = user ? "Enter Dashboard →" : "Admin Login →";
+
+  useEffect(() => {
+    router.prefetch(targetRoute);
+  }, [router, targetRoute]);
 
   return (
     <button
       onClick={() => {
         setLoading(true);
-        router.push("/dashboard");
+        router.push(targetRoute);
       }}
       className={`btn-dark ${className || ""}`}
       disabled={loading}
@@ -37,7 +51,7 @@ export function EnterDashboardButton({ className, style, label }: { className?: 
           <span>Entering...</span>
         </>
       ) : (
-        <span>{label}</span>
+        <span>{displayLabel}</span>
       )}
     </button>
   );

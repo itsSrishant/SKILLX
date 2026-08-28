@@ -9,21 +9,35 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { PartnerLogos } from "@/components/landing/PartnerLogos";
 
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 // ── Reusable Instant Navigation Button with Prefetch & 0ms Loading Feedback ──
 function EnterDashboardButton({ className, style, label }: { className?: string; style?: React.CSSProperties; label: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    router.prefetch("/dashboard");
-  }, [router]);
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const targetRoute = user ? "/dashboard" : "/login";
+  const displayLabel = user ? "Enter Dashboard →" : "Admin Login →";
+
+  useEffect(() => {
+    router.prefetch(targetRoute);
+  }, [router, targetRoute]);
 
   return (
     <button
       onClick={() => {
         setLoading(true);
-        router.push("/dashboard");
+        router.push(targetRoute);
       }}
       className={`btn-dark ${className || ""}`}
       disabled={loading}
@@ -45,7 +59,7 @@ function EnterDashboardButton({ className, style, label }: { className?: string;
           <span>Entering Dashboard...</span>
         </>
       ) : (
-        <span>{label}</span>
+        <span>{displayLabel}</span>
       )}
     </button>
   );
@@ -725,7 +739,7 @@ export default function LandingPage() {
               {[
                 {
                   heading: "Platform", links: [
-                    { name: "Admin Dashboard", href: "/dashboard" },
+                    { name: "Admin Login", href: "/login" },
                     { name: "Student Portal", href: "/student" },
                     { name: "District Skill Plans", href: "/district-plan/Pune" },
                   ]

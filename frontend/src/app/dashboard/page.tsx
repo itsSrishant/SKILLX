@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LangProvider, useLang } from "@/lib/i18n";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { GovAssistantModal } from "@/components/dashboard/GovAssistantModal";
+import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
+import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -92,7 +95,7 @@ interface SkillGapSummaryData {
   trainees_at_critical_risk: number; trainees_at_moderate_risk: number;
   total_trainees_at_risk: number;
   avg_skill_mismatch_pct: number;
-  estimated_annual_income_loss_inr: number;
+  projected_salary_lift_inr: number;
   state_wide_top_deficits: { skill: string; courses_affected: number }[];
 }
 
@@ -453,7 +456,7 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
 
 function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
   if (!data || data.total_courses_analyzed===0) return null;
-  const lossInCr = (data.estimated_annual_income_loss_inr/10000000).toFixed(1);
+  const liftInCr = (data.projected_salary_lift_inr/10000000).toFixed(1);
   return (
     <div style={{ background:"white", borderRadius:16, border:`1px solid ${C.border}`, marginBottom:28, overflow:"hidden" }}>
       <div style={{ padding:"16px 24px", background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)", display:"flex", alignItems:"center", gap:14 }}>
@@ -468,7 +471,7 @@ function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
           { label:"Critical Deficit", value:`${data.critical_deficit_courses}`, sub:`${data.critical_deficit_pct}% of courses`, color:C.red, icon:"🔴" },
           { label:"Trainees At Risk", value:data.total_trainees_at_risk.toLocaleString(), sub:"Need urgent skilling", color:C.orange, icon:"⚠️" },
           { label:"Skill Mismatch Index", value:`${data.avg_skill_mismatch_pct}%`, sub:"Skills absent from syllabi", color:C.purple, icon:"📉" },
-          { label:"Est. Income Loss/Year", value:`₹${lossInCr} Cr`, sub:"Economic cost of inaction", color:"#4c1d95", icon:"💸" },
+          { label:"Est. Income Growth/Yr", value:`+₹${liftInCr} Cr`, sub:"Projected lift after bridge packs", color:C.green, icon:"📈" },
         ].map((item,i) => (
           <div key={i} style={{ padding:"20px 22px", borderRight:i<3?`1px solid ${C.border}`:"none", background:i%2===0?"white":C.bg }}>
             <div style={{ fontSize:11, fontWeight:700, color:item.color, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>{item.icon} {item.label}</div>
@@ -501,6 +504,34 @@ function DashboardInner() {
   const [engineRunning, setEngineRunning] = useState(false);
   const [engineResult, setEngineResult] = useState<Record<string,unknown>|null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string|null>(null);
+  const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    const dist = selectedDistrict || "Maharashtra";
+    setNotifications([
+      {
+        id: "1",
+        type: "alert",
+        title: "Critical Skill Gap",
+        message: `The alignment score for Fitter in ${dist} dropped below 55%. Immediate curriculum intervention recommended.`,
+        time: "5m ago",
+        isRead: false,
+        actionLabel: "View District Plan",
+        onAction: () => document.getElementById("districtplan")?.scrollIntoView({behavior: "smooth"})
+      },
+      {
+        id: "2",
+        type: "recommendation",
+        title: "Policy Memo Ready",
+        message: `Based on recent data, we recommend deploying a PLC Automation Bridge Pack in ${dist}.`,
+        time: "1h ago",
+        isRead: false,
+        actionLabel: "Generate Memo",
+        onAction: () => document.getElementById("districtplan")?.scrollIntoView({behavior: "smooth"})
+      }
+    ]);
+  }, [selectedDistrict]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"ALL"|"ITI"|"MSSDS">("ALL");
   const [showSkillDict, setShowSkillDict] = useState(false);
@@ -669,6 +700,12 @@ function DashboardInner() {
                 🎓 Student Portal
               </Link>
 
+              <NotificationCenter 
+                items={notifications} 
+                onMarkAllRead={() => setNotifications(n => n.map(x => ({ ...x, isRead: true })))}
+                align="left"
+              />
+
               <button id="top-skill-dict-btn" onClick={()=>setShowSkillDict(true)}
                 style={{ padding:"8px 16px", borderRadius:999, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow:"0 1px 3px rgba(8,145,178,0.08)" }}
                 onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.cyanMid; }}
@@ -736,6 +773,13 @@ function DashboardInner() {
               <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>{filteredGaps.length} of {gaps.length} courses{selectedDistrict?` · ${selectedDistrict}`:" · All Districts"} — Page {currentPage} of {totalPages||1}</div>
             </div>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+              {activeCourseAssistant && (
+                <CourseAssistantModal 
+                  courseTitle={activeCourseAssistant.title} 
+                  district={activeCourseAssistant.district} 
+                  onClose={() => setActiveCourseAssistant(null)} 
+                />
+              )}
               {selectedDistrict && <button onClick={()=>setSelectedDistrict(null)} style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:12, fontWeight:600, cursor:"pointer" }}>📍 {selectedDistrict} ×</button>}
               <select id="course-type-select" value={filterType} onChange={e=>setFilterType(e.target.value as "ALL"|"ITI"|"MSSDS")}
                 style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:600, color:C.text, cursor:"pointer", outline:"none" }}>
@@ -770,7 +814,15 @@ function DashboardInner() {
                     >
                       <td style={{ padding:"12px 16px", fontSize:11, color:C.textMuted, fontWeight:700 }}>{rowNum}</td>
                       <td style={{ padding:"12px 16px" }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{gap.course_title}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{gap.course_title}</div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveCourseAssistant({title: gap.course_title, district: gap.district}); }}
+                            style={{ background: "#cffafe", border: "none", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#0891b2", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                          >
+                            <span>✨</span> Ask AI
+                          </button>
+                        </div>
                         <div style={{ fontSize:11, color:C.textMuted, marginTop:2 }}>ID #{gap.course_id}</div>
                       </td>
                       <td style={{ padding:"12px 16px" }}>
@@ -922,6 +974,8 @@ function DashboardInner() {
           </div>
         </div>
       )}
+      {/* ── Executive Policy AI Copilot Floating Assistant ── */}
+      <GovAssistantModal selectedDistrict={selectedDistrict || undefined} />
     </div>
   );
 }
