@@ -1399,6 +1399,7 @@ function StudentInner() {
       const saved = localStorage.getItem("skillx_student_profile");
       if (saved) {
         const p: StudentProfile = JSON.parse(saved);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProfile(p);
         setSelectedDistrict(p.district || "Pune");
         if (!p.onboardingDone) setShowOnboarding(true);
@@ -1421,6 +1422,7 @@ function StudentInner() {
 
   // ── Load courses from real API ───────────────────────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
     fetch(`${API}/api/v1/analytics/gap-analysis`)
@@ -1658,7 +1660,7 @@ function StudentInner() {
                 {" "}Future Skill Path
               </h1>
               <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 28, maxWidth: 560 }}>
-                Find ITI and MSSDS courses across Maharashtra's 36 districts based on your existing skills,
+                Find ITI and MSSDS courses across Maharashtra&apos;s 36 districts based on your existing skills,
                 career goals, and real employer demand — not a generic course catalogue.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

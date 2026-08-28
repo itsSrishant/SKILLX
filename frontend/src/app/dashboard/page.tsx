@@ -96,6 +96,7 @@ interface SkillGapSummaryData {
   state_wide_top_deficits: { skill: string; courses_affected: number }[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let dashMemoryCache: { m: any; g: any; d: any; s: any; ind: any; sg: any; ts: number } | null = null;
 
 function GoalCircleLoader({ text }: { text?: string }) {
@@ -565,6 +566,7 @@ function DashboardInner() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   useEffect(() => {
@@ -612,6 +614,7 @@ function DashboardInner() {
 
   const totalPages = useMemo(()=>Math.ceil(filteredGaps.length/PAGE_SIZE),[filteredGaps.length]);
   const pagedGaps = useMemo(()=>filteredGaps.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE),[filteredGaps,currentPage]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{setCurrentPage(1);},[search,filterType,selectedDistrict]);
 
   const totalCourses=(metrics as Record<string,number>)?.total_courses??0;

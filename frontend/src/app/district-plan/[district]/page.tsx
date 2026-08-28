@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "3000") ? "http://localhost:8000" : "");
 
 const C = {
-  orange:"#f97316",orangeLight:"#fff7ed",
+  orange:"#f97316",orangeLight:"#fff7ed",orangeMid:"#fdba74",
   cyan:"#0891b2",cyanLight:"#ecfeff",cyanMid:"#cffafe",
   green:"#16a34a",greenLight:"#f0fdf4",
   purple:"#7c3aed",purpleLight:"#f5f3ff",
@@ -99,6 +99,7 @@ export default function DistrictPlanPage() {
 
   useEffect(()=>{
     if(!districtName) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const fetchPlan = async () => {
       try {
@@ -117,8 +118,8 @@ export default function DistrictPlanPage() {
           return;
         }
         throw new Error(`District Plan data for ${districtName} is initializing...`);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
       }
     };
