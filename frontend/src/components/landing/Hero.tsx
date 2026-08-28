@@ -19,7 +19,7 @@ export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
 
         {/* Selectable HTML Text over the clean image background */}
         <div style={{ position: "absolute", top: 80, bottom: 0, left: 0, right: 0, zIndex: 2, display: "flex", alignItems: "center" }}>
-          <div style={{ maxWidth: 1280, margin: "0 auto", width: "100%", padding: "0 40px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", transform: "translateY(-60px)" }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto", width: "100%", padding: "0 40px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", transform: "translate(-50px, -60px)" }}>
             
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8,
@@ -39,9 +39,9 @@ export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
               letterSpacing: "-0.02em",
               marginBottom: 20,
               color: "#0f172a",
-              textShadow: "0 0 40px rgba(255,255,255,1), 0 0 20px rgba(255,255,255,0.9), 0 0 10px rgba(255,255,255,0.8)"
+              textShadow: "0 0 16px #ffffff, 0 0 8px #ffffff, 0 0 24px #ffffff, 0 0 32px #ffffff"
             }}>
-              <span style={{ color: "#f97316", display: "block", textShadow: "0 0 30px rgba(255,255,255,0.8)" }}>
+              <span style={{ color: "#f97316", display: "block", textShadow: "0 0 16px #ffffff, 0 0 8px #ffffff, 0 0 24px #ffffff, 0 0 32px #ffffff" }}>
                 Where Maharashtra’s Skills
               </span>
               Meet Industry Demand
@@ -49,44 +49,60 @@ export const Hero = forwardRef<HTMLDivElement, {}>((props, ref) => {
 
             <p style={{ 
               fontSize: "clamp(16px, 1.8vw, 19px)", 
-              color: "#475569", 
+              color: "#0f172a", 
+              fontWeight: 600,
               lineHeight: 1.7, 
               marginBottom: 36, 
               maxWidth: 540,
-              textShadow: "0 0 20px rgba(255,255,255,1), 0 0 10px rgba(255,255,255,0.9)"
+              textShadow: "0 0 16px #ffffff, 0 0 8px #ffffff, 0 0 24px #ffffff, 0 0 32px #ffffff"
             }}>
               Real government data. Four intelligent engines. One mission — building a future-ready workforce for the jobs of tomorrow.
             </p>
 
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "flex-start", marginBottom: 40 }}>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "flex-start", marginBottom: 40, alignItems: "center" }}>
               <EnterDashboardButton
                 label="Enter Admin Dashboard →"
                 className="btn-dark"
-                style={{ padding: "16px 36px", fontSize: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
+                style={{ padding: "16px 36px", fontSize: 16, boxShadow: "0 8px 32px rgba(255, 122, 0, 0.45), 0 0 20px rgba(255, 255, 255, 0.8)" }}
               />
-              <Link href="/student" className="btn-light" style={{ padding: "15px 32px", fontSize: 16, backgroundColor: "white", border: "1px solid #e2e8f0" }}>
+              <Link href="/student" className="btn-light" style={{ padding: "16px 36px", fontSize: 16, boxShadow: "0 8px 32px rgba(37, 99, 235, 0.25), 0 0 20px rgba(255, 255, 255, 0.8)" }}>
                 Student Portal
               </Link>
             </div>
             
-            {/* Trusted Government Badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: "#475569" }}>
-              <span style={{ color: "#16a34a" }}>🛡️</span> Trusted by Government. Built for Maharashtra.
-            </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Features & Integrations Section (Below the fold) */}
-      <section style={{ background: "#ffffff", padding: "80px 40px", width: "100%" }}>
+      {/* 2. Features Section (Below the fold) */}
+      <section style={{ background: "#ffffff", padding: "32px 40px 32px", width: "100%" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           
+          {/* Trusted Government Badge */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <div style={{ 
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: 10, 
+              padding: "10px 24px", 
+              borderRadius: 999, 
+              background: "#f8fafc", 
+              border: "1px solid #e2e8f0",
+              fontSize: 14, 
+              fontWeight: 700, 
+              color: "#334155",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.02)"
+            }}>
+              <span style={{ fontSize: 16 }}>🛡️</span> Trusted by Government. Built for Maharashtra.
+            </div>
+          </div>
+
           {/* Feature Cards */}
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 20,
-            marginBottom: 60
+            marginBottom: 0
           }}>
             {[
               { icon: <Landmark size={22} />, title: "Real Government Data", desc: "Policy-aligned insights", color: "#f97316", bg: "#fff7ed", border: "#ffedd5" },

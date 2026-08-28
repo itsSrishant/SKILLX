@@ -22,7 +22,6 @@ export function EnterDashboardButton({ className, style, label }: { className?: 
       disabled={loading}
       style={{
         ...style,
-        border: "none",
         cursor: loading ? "wait" : "pointer",
         opacity: loading ? 0.85 : 1,
         display: "inline-flex",
@@ -77,7 +76,20 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
           </span>
         </Link>
 
-        <nav className="nav-links" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 1 }}>
+        <nav className="nav-links" style={{
+          position: "absolute",
+          left: "45%",
+          transform: "translateX(-50%)",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 8px",
+          borderRadius: 999,
+          border: "1px solid rgba(249,115,22,0.2)",
+          background: "rgba(255, 255, 255, 0.85)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.02)"
+        }}>
           {[
             { name: "Platform", href: "#platform", icon: <Building2 size={16} /> },
             { name: "Engines", href: "#engines", icon: <Cpu size={16} /> },
@@ -87,18 +99,7 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
             <a
               key={item.name}
               href={item.href}
-              style={{
-                padding: "6px 16px",
-                fontSize: 13,
-                color: "#475569",
-                textDecoration: "none",
-                fontWeight: 600,
-                borderRadius: 999,
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="nav-link-item"
             >
               {item.icon}
               <span>{item.name}</span>
@@ -107,13 +108,13 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
         </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, zIndex: 2 }}>
-          <Link href="/student" className="btn-light" style={{ padding: "8px 18px", fontSize: 13 }}>
+          <Link href="/student" className="btn-light" style={{ padding: "10px 22px", fontSize: 14 }}>
             Student Portal
           </Link>
           <EnterDashboardButton
             label="Enter Dashboard →"
             className="btn-dark"
-            style={{ padding: "9px 22px", fontSize: 13 }}
+            style={{ padding: "10px 22px", fontSize: 14 }}
           />
         </div>
       </div>
