@@ -106,20 +106,90 @@ interface BridgePackData {
   setup_days?: string;
 }
 
+// ── Goal Circle Loader (Smooth Progress Transition) ────────────────────────────
+function GoalCircleLoader({ text }: { text?: string }) {
+  const [progress, setProgress] = useState(15);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 15 + 10)));
+    }, 110);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "64px 20px", minHeight: 340, width: "100%", transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+    }}>
+      <style jsx>{`
+        @keyframes spinGrad {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div style={{ position: "relative", width: 84, height: 84, marginBottom: 20 }}>
+        <div style={{
+          position: "absolute", inset: -4, borderRadius: "50%",
+          background: `conic-gradient(from 0deg, ${C.sky}, ${C.orange}, ${C.purple}, ${C.sky})`,
+          animation: "spinGrad 1.6s linear infinite",
+          filter: "blur(3px)", opacity: 0.85
+        }} />
+        <div style={{
+          position: "absolute", inset: 2, borderRadius: "50%", background: "white",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+        }}>
+          <span style={{ fontSize: 18, fontWeight: 900, color: C.sky, fontFamily: "'Inter', sans-serif" }}>
+            {progress}%
+          </span>
+        </div>
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 4, letterSpacing: "-0.01em" }}>
+        {text || "Generating Fact-Driven Skill Upgrade Plan..."}
+      </div>
+      <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>
+        Calculating Employer Citations, Salary Lifts & GeM Specs
+      </div>
+    </div>
+  );
+}
+
+// Module-level in-memory cache for bridge packs
+const bpMemoryCache = new Map<string, any>();
+
 export default function BridgePackPage() {
   const params = useParams();
   const router = useRouter();
-  const courseId = params?.id;
+  const courseId = params?.id ? String(params.id) : "";
 
   const [data, setData] = useState<BridgePackData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<number, boolean>>({ 0: true });
   const [showExecSummary, setShowExecSummary] = useState(false);
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
 
   useEffect(() => {
     if (!courseId) return;
-    setLoading(true);
+    let hasCache = false;
+    if (bpMemoryCache.has(courseId)) {
+      const cached = bpMemoryCache.get(courseId);
+      if (cached && cached.course_id) {
+        setData(cached);
+        setLoading(false); // Instant 0ms load!
+        hasCache = true;
+      }
+    }
+
+    if (!hasCache) {
+      setLoading(true);
+    }
+
     fetch(`${API}/api/v1/recommendations/bridge-pack/${courseId}`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load Skill Upgrade Plan");
@@ -128,6 +198,7 @@ export default function BridgePackPage() {
       .then((d) => {
         setData(d);
         setLoading(false);
+        bpMemoryCache.set(courseId, d);
       })
       .catch((err) => {
         setError(err.message);
@@ -140,7 +211,13 @@ export default function BridgePackPage() {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Force expand all module boxes in state before print
+    const allOpen: Record<number, boolean> = {};
+    packItems.forEach((_, idx) => { allOpen[idx] = true; });
+    setExpandedModules(allOpen);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const packItems = data?.bridge_packs || [];
@@ -161,18 +238,54 @@ export default function BridgePackPage() {
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", padding: "28px 36px" }}>
+      {/* Print Stylesheet */}
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          .accordion-body-print {
+            display: block !important;
+          }
+          .accordion-chevron {
+            display: none !important;
+          }
+          .printable-module-card {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 16px !important;
+          }
+          body {
+            background: white !important;
+            padding: 0 !important;
+          }
+        }
+      `}</style>
+
       {/* Top Header Navigation */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
-            onClick={() => router.back()}
+            onClick={() => {
+              setIsNavigatingBack(true);
+              router.push("/dashboard");
+            }}
+            disabled={isNavigatingBack}
             style={{
               padding: "9px 18px", borderRadius: 10, border: `1px solid ${C.border}`,
-              background: "white", color: C.text, fontSize: 13, fontWeight: 800, cursor: "pointer",
+              background: "white", color: C.text, fontSize: 13, fontWeight: 800,
+              cursor: isNavigatingBack ? "wait" : "pointer",
               display: "flex", alignItems: "center", gap: 6, boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
             }}
           >
-            ← Back to Admin Console
+            {isNavigatingBack ? (
+              <>
+                <span style={{ fontSize: 12, animation: "spin 1s linear infinite" }}>⏳</span>
+                <span>Returning to Console...</span>
+              </>
+            ) : (
+              <span>← Back to Admin Console</span>
+            )}
           </button>
           <span style={{ fontSize: 13, color: C.textMuted }}>/ Fact-Driven Skill Upgrade Plan Workspace</span>
         </div>
@@ -202,9 +315,8 @@ export default function BridgePackPage() {
       </div>
 
       {loading ? (
-        <div style={{ background: "white", borderRadius: 20, padding: 60, textAlign: "center", border: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 24, marginBottom: 12 }}>⚙ Querying Live SQLite Database & Generating Upgrade Plan...</div>
-          <div style={{ fontSize: 14, color: C.textMuted }}>Calculating employer citations, salary lifts, and GeM procurement specs...</div>
+        <div style={{ background: "white", borderRadius: 20, padding: "40px 20px", border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(0,0,0,0.03)" }}>
+          <GoalCircleLoader text="Generating Fact-Driven Skill Upgrade Plan..." />
         </div>
       ) : error || !data ? (
         <div style={{ background: "white", borderRadius: 20, padding: 60, textAlign: "center", border: `1px solid ${C.border}` }}>
@@ -361,9 +473,37 @@ export default function BridgePackPage() {
             </div>
           </div>
 
-          {/* COLLAPSIBLE 20-HOUR MODULAR CURRICULUM SCHEDULE */}
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 14, fontFamily: "'Playfair Display', serif" }}>
-            📚 20-Hour Modular Curriculum Schedule (Collapsible Accordion View)
+          {/* 20-HOUR MODULAR CURRICULUM SCHEDULE WITH EXPAND/COLLAPSE ALL */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.text, fontFamily: "'Playfair Display', serif" }}>
+              📚 20-Hour Modular Curriculum Schedule
+            </div>
+            <div className="no-print" style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => {
+                  const allOpen: Record<number, boolean> = {};
+                  packItems.forEach((_, i) => { allOpen[i] = true; });
+                  setExpandedModules(allOpen);
+                }}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, border: `1px solid ${C.skyMid}`,
+                  background: C.skyLight, color: C.sky, fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5
+                }}
+              >
+                <span>👐</span> Expand All Units
+              </button>
+              <button
+                onClick={() => setExpandedModules({})}
+                style={{
+                  padding: "6px 14px", borderRadius: 8, border: `1px solid ${C.border}`,
+                  background: "white", color: C.textSub, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                📁 Collapse All
+              </button>
+            </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
@@ -372,6 +512,7 @@ export default function BridgePackPage() {
               return (
                 <div
                   key={idx}
+                  className="printable-module-card"
                   style={{
                     background: "white", borderRadius: 16, border: `1px solid ${C.border}`,
                     borderLeft: `5px solid ${idx % 3 === 0 ? C.orange : idx % 3 === 1 ? C.sky : C.green}`,
@@ -404,30 +545,34 @@ export default function BridgePackPage() {
                       <span style={{ padding: "4px 12px", borderRadius: 999, background: C.skyLight, color: C.sky, fontSize: 12, fontWeight: 800 }}>
                         ⏱ {mod.duration_hours || 20} Hours
                       </span>
-                      <span style={{ fontSize: 16, color: C.textMuted }}>{isOpen ? "▲" : "▼"}</span>
+                      <span className="accordion-chevron" style={{ fontSize: 16, color: C.textMuted }}>{isOpen ? "▲" : "▼"}</span>
                     </div>
                   </div>
 
-                  {/* Accordion Body */}
-                  {isOpen && (
-                    <div style={{ padding: "20px 24px", borderTop: `1px solid ${C.border}`, background: "white" }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: C.textMuted, marginBottom: 10, textTransform: "uppercase" }}>
-                        🛠 Mandatory Workshop Rig Exercises & Sessions:
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        {(mod.activities || [
-                          "Session 1: Practical Workshop Rig Setup and Electrical Safety Verification",
-                          "Session 2: Equipment Interlocking, Relay Wiring & Circuit Testing",
-                          "Session 3: Industrial Sensor Interfacing and Diagnostic Calibration",
-                          "Session 4: System Commissioning and Fault Rectification Assessment"
-                        ]).map((act, aIdx) => (
-                          <div key={aIdx} style={{ padding: "10px 14px", background: C.bg, borderRadius: 10, fontSize: 13, color: C.textSub, border: `1px solid ${C.border}` }}>
-                            🔧 {act}
-                          </div>
-                        ))}
-                      </div>
+                  {/* Accordion Body — Always in DOM, forced block in @media print */}
+                  <div
+                    className="accordion-body-print"
+                    style={{
+                      padding: "20px 24px", borderTop: `1px solid ${C.border}`, background: "white",
+                      display: isOpen ? "block" : "none"
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 800, color: C.textMuted, marginBottom: 10, textTransform: "uppercase" }}>
+                      🛠 Mandatory Workshop Rig Exercises & Sessions:
                     </div>
-                  )}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {(mod.activities || [
+                        "Session 1: Practical Workshop Rig Setup and Electrical Safety Verification",
+                        "Session 2: Equipment Interlocking, Relay Wiring & Circuit Testing",
+                        "Session 3: Industrial Sensor Interfacing and Diagnostic Calibration",
+                        "Session 4: System Commissioning and Fault Rectification Assessment"
+                      ]).map((act, aIdx) => (
+                        <div key={aIdx} style={{ padding: "10px 14px", background: C.bg, borderRadius: 10, fontSize: 13, color: C.textSub, border: `1px solid ${C.border}` }}>
+                          🔧 {act}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               );
             })}

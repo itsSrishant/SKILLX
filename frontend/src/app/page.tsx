@@ -1,8 +1,50 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import Lenis from "lenis";
+
+// ── Reusable Instant Navigation Button with Prefetch & 0ms Loading Feedback ──
+function EnterDashboardButton({ className, style, label }: { className?: string; style?: React.CSSProperties; label: string }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
+
+  return (
+    <button
+      onClick={() => {
+        setLoading(true);
+        router.push("/dashboard");
+      }}
+      className={className}
+      disabled={loading}
+      style={{
+        ...style,
+        border: "none",
+        cursor: loading ? "wait" : "pointer",
+        opacity: loading ? 0.85 : 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+      }}
+    >
+      {loading ? (
+        <>
+          <span style={{ display: "inline-block", animation: "pulse 1s infinite" }}>⏳</span>
+          <span>Entering Dashboard...</span>
+        </>
+      ) : (
+        <span>{label}</span>
+      )}
+    </button>
+  );
+}
 
 const PARTNER_LOGOS = [
   { name: "DVET Maharashtra", short: "DVET" },
@@ -328,9 +370,7 @@ export default function LandingPage() {
             <Link href="/student" className="btn-light" style={{ padding: "9px 20px", fontSize: 14 }}>
               Student Portal
             </Link>
-            <Link href="/dashboard" className="btn-dark" style={{ padding: "10px 24px", fontSize: 14 }}>
-              Enter Dashboard →
-            </Link>
+            <EnterDashboardButton label="Enter Dashboard →" className="btn-dark" style={{ padding: "10px 24px", fontSize: 14 }} />
           </div>
         </div>
       </header>
@@ -372,9 +412,7 @@ export default function LandingPage() {
 
           {/* Centered Gradient CTAs */}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 60 }}>
-            <Link href="/dashboard" className="btn-dark" style={{ padding: "16px 36px", fontSize: 16 }}>
-              Enter Admin Dashboard →
-            </Link>
+            <EnterDashboardButton label="Enter Admin Dashboard →" className="btn-dark" style={{ padding: "16px 36px", fontSize: 16 }} />
             <Link href="/student" className="btn-light" style={{ padding: "16px 32px", fontSize: 16 }}>
               Student Portal
             </Link>
