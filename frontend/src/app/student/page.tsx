@@ -211,6 +211,7 @@ function SkillBadge({ skill, type }: { skill: string; type: "mastered" | "missin
       padding: "2px 8px", borderRadius: 999,
       background: s.bg, color: s.color,
       fontSize: 10, fontWeight: 700,
+      whiteSpace: "nowrap",
       border: `1px solid ${s.color}20`,
       transition: "transform 0.15s",
       cursor: "default",

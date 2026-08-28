@@ -10,8 +10,13 @@ import json
 import hashlib
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-import fitz  # PyMuPDF
-import pdfplumber
+try:
+    import fitz  # PyMuPDF
+    import pdfplumber
+except ImportError:
+    logger.warning("PDF libraries not installed. PDF ingestion will be disabled.")
+    fitz = None
+    pdfplumber = None
 
 class PDFCurriculumIngestor:
     def __init__(self, pdf_path: str, source_url: Optional[str] = None, district: str = "Pune"):

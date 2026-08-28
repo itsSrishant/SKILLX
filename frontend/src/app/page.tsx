@@ -318,6 +318,54 @@ export default function LandingPage() {
           transform: translateY(1px) scale(0.97);
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .hero-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 40px;
+          align-items: center;
+        }
+        
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+        }
+
+        .nav-links {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          background: rgba(255,255,255,0.92);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(249,115,22,0.18);
+          border-radius: 999px;
+          padding: 5px 10px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        @media (max-width: 1024px) {
+          .features-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .hero-grid {
+            grid-template-columns: 1fr;
+            text-align: center;
+          }
+          .hero-grid > div:first-child {
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .features-grid {
+            grid-template-columns: 1fr;
+          }
+          .nav-links {
+            display: none !important;
+          }
+        }
       `}</style>
 
       

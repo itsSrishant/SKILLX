@@ -76,23 +76,7 @@ export function Navbar({ scrolled }: { scrolled: boolean }) {
           </span>
         </Link>
 
-        <nav
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(12px)",
-            border: "1px solid rgba(249,115,22,0.18)",
-            borderRadius: 999,
-            padding: "5px 10px",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-            zIndex: 1,
-          }}
-        >
+        <nav className="nav-links" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", zIndex: 1 }}>
           {[
             { name: "Platform", href: "#platform", icon: <Building2 size={16} /> },
             { name: "Engines", href: "#engines", icon: <Cpu size={16} /> },
