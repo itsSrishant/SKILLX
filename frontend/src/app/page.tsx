@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import Lenis from "lenis";
 
+import { Navbar } from "@/components/landing/Navbar";
+import { Hero } from "@/components/landing/Hero";
+import { PartnerLogos } from "@/components/landing/PartnerLogos";
+
+
 // ── Reusable Instant Navigation Button with Prefetch & 0ms Loading Feedback ──
 function EnterDashboardButton({ className, style, label }: { className?: string; style?: React.CSSProperties; label: string }) {
   const router = useRouter();
@@ -64,7 +69,7 @@ const PARTNER_LOGOS = [
 const FEATURES = [
   {
     engine: "ENGINE 01",
-    title: "Real-Time Course Ingestion",
+    title: "Automated Course Ingestion",
     description: "SHA-256 change detection automatically ingests all 85 DVET ITI Trades and 1,200+ MSSDS entries. Historical course records are marked inactive but never deleted for complete auditability.",
     tag: "Source Ingestion",
     color: "#f97316",
@@ -72,8 +77,8 @@ const FEATURES = [
   },
   {
     engine: "ENGINE 02",
-    title: "Live Job Market Scanning",
-    description: "Continuously monitors NCS.gov.in and industrial job postings across Maharashtra's 36 districts and MIDC hubs in Pune, Nashik, Thane, Nagpur, and Chhatrapati Sambhajinagar.",
+    title: "Automated Market Scanning",
+    description: "Regularly monitors NCS.gov.in and industrial job postings across Maharashtra's 36 districts and MIDC hubs in Pune, Nashik, Thane, Nagpur, and Chhatrapati Sambhajinagar.",
     tag: "Demand Crawler",
     color: "#0891b2",
     bg: "#ecfeff",
@@ -315,281 +320,11 @@ export default function LandingPage() {
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
 
-      {/* ── STICKY TOP HEADER NAV BAR ─────────────────────────────────── */}
-      <header
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1000,
-          transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
-          background: scrolled ? "rgba(255,255,255,0.95)" : "rgba(255,253,250,0.88)",
-          backdropFilter: "blur(16px)",
-          boxShadow: scrolled ? "0 2px 10px rgba(0,0,0,0.06)" : "none",
-          borderBottom: "1px solid rgba(0,0,0,0.06)",
-        }}
-      >
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, position: "relative" }}>
-          {/* Logo */}
-          <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12, zIndex: 2 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 12,
-              background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "'Playfair Display', serif", fontWeight: 800, fontSize: 20, color: "white",
-              boxShadow: "0 4px 14px rgba(249,115,22,0.35)"
-            }}>
-              S
-            </div>
-            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
-              SkillX
-            </span>
-          </Link>
-
-          {/* Perfectly Center-Aligned Floating Navigation Bar */}
-          <nav
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: 6,
-              alignItems: "center",
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(249,115,22,0.18)",
-              borderRadius: 999,
-              padding: "5px 10px",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-              zIndex: 1,
-            }}
-          >
-            {[
-              { name: "Platform", href: "#platform", icon: "🏛️" },
-              { name: "Engines", href: "#engines", icon: "⚙️" },
-              { name: "Workflow", href: "#workflow", icon: "🔄" },
-              { name: "Batch Manager", href: "#batch", icon: "📋" },
-            ].map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                style={{
-                  padding: "6px 16px",
-                  fontSize: 13,
-                  color: "#475569",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  borderRadius: 999,
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLAnchorElement).style.color = "#ea580c";
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#fff7ed";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLAnchorElement).style.color = "#475569";
-                  (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-                }}
-              >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
-              </a>
-            ))}
-          </nav>
-
-          {/* Homepage CTA Buttons with Glow */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", zIndex: 2 }}>
-            <Link href="/student" className="btn-light" style={{ padding: "8px 20px", fontSize: 13 }}>
-              Student Portal
-            </Link>
-
-            <EnterDashboardButton
-              label="Enter Dashboard →"
-              className="btn-dark"
-              style={{ padding: "9px 22px", fontSize: 13 }}
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* ── MAHARASHTRA-CENTRIC HERO SECTION (GSAP Animated) ─────────────── */}
-      <section style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", paddingTop: 130, paddingBottom: 60, textAlign: "center" }}>
-        <HighVisibilityLandmarkBackground />
-
-        <div ref={heroRef} style={{ position: "relative", zIndex: 1, maxWidth: 980, margin: "0 auto", padding: "0 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-
-          {/* Top Pill Tag */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "6px 18px", borderRadius: 999,
-            background: "#fff7ed", border: "1px solid rgba(249,115,22,0.3)",
-            fontSize: 13, fontWeight: 800, color: "#ea580c",
-            marginBottom: 28, boxShadow: "0 2px 10px rgba(249,115,22,0.1)"
-          }}>
-            <span>⭐</span> Building Maharashtra&apos;s Future-Ready Workforce
-          </div>
-
-          {/* Main Dual-Color Headline */}
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "clamp(38px, 5.8vw, 64px)",
-            fontWeight: 800,
-            lineHeight: 1.15,
-            letterSpacing: "-0.02em",
-            marginBottom: 20,
-          }}>
-            <span style={{ color: "#f97316", display: "inline-block" }}>
-              Where Maharashtra’s Skills
-            </span>
-            <br />
-            <span style={{ color: "#0f172a" }}>
-              Meet Industry Demand
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p style={{ fontSize: "clamp(16px, 2vw, 19px)", color: "#475569", lineHeight: 1.7, marginBottom: 36, maxWidth: 720 }}>
-            Real government data. Four intelligent engines. One mission — building a future-ready workforce for the jobs of tomorrow.
-          </p>
-
-          {/* Dual Hero Main Action Buttons */}
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 54 }}>
-            <EnterDashboardButton
-              label="Enter Admin Dashboard →"
-              className="btn-dark"
-              style={{ padding: "16px 36px", fontSize: 16 }}
-            />
-            <Link href="/student" className="btn-light" style={{ padding: "15px 32px", fontSize: 16 }}>
-              <span>🎓</span> Student Portal
-            </Link>
-          </div>
-
-          {/* 4 HORIZONTAL FEATURE CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, width: "100%", maxWidth: 940, marginBottom: 40 }}>
-            {[
-              { icon: "🏛️", title: "Real Government Data", desc: "Policy-aligned insights", color: "#f97316", bg: "#fff7ed", border: "#ffedd5" },
-              { icon: "⚙️", title: "4 Intelligent Engines", desc: "Data-driven skilling", color: "#0891b2", bg: "#ecfeff", border: "#cffafe" },
-              { icon: "🎯", title: "One Mission", desc: "Future-ready workforce", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-              { icon: "📈", title: "Jobs of Tomorrow", desc: "Industry-aligned skills", color: "#16a34a", bg: "#f0fdf4", border: "#dcfce7" },
-            ].map((card, i) => (
-              <div key={i} style={{
-                background: "white", borderRadius: 16, padding: "18px 16px",
-                border: `1px solid ${card.border}`,
-                boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-                display: "flex", alignItems: "center", gap: 12, textAlign: "left"
-              }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                  {card.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", lineHeight: 1.3 }}>{card.title}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{card.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* 3 ROLE-BASED NAVIGATION CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, width: "100%", maxWidth: 940, marginBottom: 36 }}>
-            {[
-              {
-                icon: "🎓",
-                role: "For Students",
-                desc: "Discover in-demand skills and grow your career",
-                link: "/student",
-                badgeColor: "#0891b2",
-                badgeBg: "#ecfeff",
-              },
-              {
-                icon: "🏫",
-                role: "For Institutions",
-                desc: "Manage batches and track skill development",
-                link: "/dashboard",
-                badgeColor: "#0284c7",
-                badgeBg: "#f0f9ff",
-              },
-              {
-                icon: "💼",
-                role: "For Employers",
-                desc: "Get industry-ready talent for tomorrow",
-                link: "/dashboard",
-                badgeColor: "#f97316",
-                badgeBg: "#fff7ed",
-              },
-            ].map((card, i) => (
-              <Link key={i} href={card.link} style={{ textDecoration: "none" }}>
-                <div style={{
-                  background: "white", borderRadius: 18, padding: "24px 20px",
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
-                  cursor: "pointer"
-                }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 14px 32px rgba(0,0,0,0.08)";
-                    (e.currentTarget as HTMLDivElement).style.borderColor = card.badgeColor;
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLDivElement).style.transform = "none";
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.04)";
-                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.08)";
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 14, background: card.badgeBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
-                      {card.icon}
-                    </div>
-                    <div style={{ textAlign: "left" }}>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>{card.role}</div>
-                      <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.4 }}>{card.desc}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 18, color: card.badgeColor, fontWeight: 800, paddingLeft: 8 }}>›</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* Trusted Government Badge */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: "#475569" }}>
-            <span style={{ color: "#16a34a" }}>🛡️</span> Trusted by Government. Built for Maharashtra.
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── PARTNER LOGO MARQUEE CAROUSEL ─────────────────────────────────── */}
-      <section style={{ borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#fafafa", padding: "28px 0" }}>
-        <div style={{ overflow: "hidden", width: "100%" }}>
-          <p style={{ textAlign: "center", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", color: "#8a8a8a", textTransform: "uppercase", marginBottom: 18 }}>
-            Maharashtra Skilling Ecosystem Integrations
-          </p>
-          <div className="logo-track" style={{ display: "flex", gap: 16 }}>
-            {[...PARTNER_LOGOS, ...PARTNER_LOGOS].map((logo, i) => (
-              <div key={i} style={{ flexShrink: 0, padding: "0 8px" }}>
-                <div style={{
-                  padding: "8px 20px", borderRadius: 10,
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  background: "white",
-                  fontSize: 13, fontWeight: 700, color: "#5a5a5a",
-                  letterSpacing: "0.02em", whiteSpace: "nowrap",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-                }}>
-                  {logo.short}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── KILLER NARRATIVE STRIP: The Full Story ──────────────────────────── */}
+      
+      <Navbar scrolled={scrolled} />
+      <Hero ref={heroRef} />
+      <PartnerLogos />
+{/* ── KILLER NARRATIVE STRIP: The Full Story ──────────────────────────── */}
       <section id="platform" style={{ padding: "100px 40px", background: "linear-gradient(180deg, #0b1329 0%, #0f172a 100%)", color: "white", position: "relative", overflow: "hidden" }}>
         {/* Subtle Ambient Glow Orbs */}
         <div style={{ position: "absolute", top: "10%", left: "10%", width: 450, height: 450, borderRadius: "50%", background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none" }} />

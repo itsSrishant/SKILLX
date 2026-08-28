@@ -1,5 +1,9 @@
 # Documentation / private project notes
-*.md
+# (Allowing Markdown files to be tracked)
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
 
 # Environment variables / secrets
 .env

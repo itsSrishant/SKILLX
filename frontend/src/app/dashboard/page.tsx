@@ -585,9 +585,11 @@ function DashboardInner() {
     setEngineRunning(true);
     const t0 = performance.now();
     try {
-      let r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST" }).catch(() => null);
+      const adminKey = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "skillx-dev-secret-key-123";
+      const headers = { "X-Admin-API-Key": adminKey };
+      let r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST", headers }).catch(() => null);
       if (!r || !r.ok) {
-        r = await fetch(`/api/v1/engines/run-all`, { method:"POST" }).catch(() => null);
+        r = await fetch(`/api/v1/engines/run-all`, { method:"POST", headers }).catch(() => null);
       }
       if (r && r.ok) {
         const data = await r.json();

@@ -338,7 +338,8 @@ def _generate_llm_bridge_pack(
         import google.generativeai as genai
 
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        llm_model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+        model = genai.GenerativeModel(llm_model)
 
         prompt = f"""You are an expert Maharashtra vocational curriculum designer for DVET ITI and MSSDS courses.
 
