@@ -184,13 +184,13 @@ function KPICard({ label, value, sub, icon, color, colorLight, trend }: { label:
 function ScoreChip({ score }: { score: number }) {
   const color = score>=80 ? C.green : score>=50 ? C.amber : C.red;
   const bg    = score>=80 ? C.greenLight : score>=50 ? C.amberLight : C.redLight;
-  return <span style={{ padding:"3px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:bg, color, border:`1px solid ${color}20` }}>{Math.round(score)} / 100</span>;
+  return <span style={{ padding:"3px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:bg, color, border:`1px solid ${color}20`, whiteSpace:"nowrap", display:"inline-block" }}>{Math.round(score)} / 100</span>;
 }
 
 function HealthChip({ score }: { score: number }) {
-  if (score>=80) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.greenLight, color:C.green, border:`1px solid ${C.green}30` }}>🟢 Aligned</span>;
-  if (score>=50) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.amberLight, color:C.amber, border:`1px solid ${C.amber}30` }}>🟡 Gap</span>;
-  return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.redLight, color:C.red, border:`1px solid ${C.red}30` }}>🔴 Critical</span>;
+  if (score>=80) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.greenLight, color:C.green, border:`1px solid ${C.green}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🟢 Aligned</span>;
+  if (score>=50) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.amberLight, color:C.amber, border:`1px solid ${C.amber}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🟡 Gap</span>;
+  return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.redLight, color:C.red, border:`1px solid ${C.red}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🔴 Critical</span>;
 }
 
 function CategoryBadge({ cat }: { cat: string }) {
@@ -571,11 +571,18 @@ function DashboardInner() {
 
   useEffect(() => {
     const sectionIds = ["overview","courses","industry","districtplan","districts"];
+    let ticking = false;
     const handleScroll = () => {
-      const scrollY = window.scrollY + 120;
-      let current = "overview";
-      for (const id of sectionIds) { const el = document.getElementById(id); if(el&&el.offsetTop<=scrollY) current=id; }
-      setActiveNav(current);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY + 120;
+          let current = "overview";
+          for (const id of sectionIds) { const el = document.getElementById(id); if(el&&el.offsetTop<=scrollY) current=id; }
+          setActiveNav(prev => prev !== current ? current : prev);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener("scroll", handleScroll, { passive:true });
     return () => window.removeEventListener("scroll", handleScroll);
