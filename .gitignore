@@ -20,6 +20,8 @@ venv/
 env/
 *.db
 *.sqlite
+*.db-shm
+*.db-wal
 
 # Next.js & Build files
 .next/
