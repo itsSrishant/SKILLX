@@ -421,7 +421,7 @@ export default function LandingPage() {
         <HighVisibilityLandmarkBackground />
 
         <div ref={heroRef} style={{ position: "relative", zIndex: 1, maxWidth: 980, margin: "0 auto", padding: "0 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          
+
           {/* Top Pill Tag */}
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 8,
@@ -940,17 +940,21 @@ export default function LandingPage() {
 
             <div style={{ display: "flex", gap: 64 }}>
               {[
-                { heading: "Platform", links: [
-                  { name: "Admin Dashboard", href: "/dashboard" },
-                  { name: "Student Portal", href: "/student" },
-                  { name: "District Skill Plans", href: "/district-plan/Pune" },
-                ]},
-                { heading: "Engine Pipeline", links: [
-                  { name: "Ingestion Engine", href: "#engines" },
-                  { name: "Demand Crawler", href: "#engines" },
-                  { name: "Local NLP Taxonomy", href: "#engines" },
-                  { name: "Gap Analytics", href: "#engines" },
-                ]},
+                {
+                  heading: "Platform", links: [
+                    { name: "Admin Dashboard", href: "/dashboard" },
+                    { name: "Student Portal", href: "/student" },
+                    { name: "District Skill Plans", href: "/district-plan/Pune" },
+                  ]
+                },
+                {
+                  heading: "Engine Pipeline", links: [
+                    { name: "Ingestion Engine", href: "#engines" },
+                    { name: "Demand Crawler", href: "#engines" },
+                    { name: "Local NLP Taxonomy", href: "#engines" },
+                    { name: "Gap Analytics", href: "#engines" },
+                  ]
+                },
               ].map((col) => (
                 <div key={col.heading}>
                   <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 16 }}>{col.heading}</div>

@@ -100,16 +100,29 @@ export default function DistrictPlanPage() {
   useEffect(()=>{
     if(!districtName) return;
     setLoading(true);
-    fetch(`${API}/api/v1/districts/${encodeURIComponent(districtName)}/plan`)
-      .then(r=>{if(!r.ok)throw new Error(`No data for: ${districtName}`);return r.json();})
-      .then(d=>{
-        setData(d);
-        setLoading(false);
-        if(d.top_skill_gaps && d.top_skill_gaps.length > 0) {
-          setSimSkill(d.top_skill_gaps[0].skill);
+    const fetchPlan = async () => {
+      try {
+        const endpoint = `/api/v1/districts/${encodeURIComponent(districtName)}/plan`;
+        let r = await fetch(API ? `${API}${endpoint}` : endpoint).catch(() => null);
+        if (!r || !r.ok) {
+          r = await fetch(endpoint).catch(() => null);
         }
-      })
-      .catch(err=>{setError(err.message);setLoading(false);});
+        if (r && r.ok) {
+          const d = await r.json();
+          setData(d);
+          setLoading(false);
+          if (d.top_skill_gaps && d.top_skill_gaps.length > 0) {
+            setSimSkill(d.top_skill_gaps[0].skill);
+          }
+          return;
+        }
+        throw new Error(`District Plan data for ${districtName} is initializing...`);
+      } catch (err: any) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+    fetchPlan();
   },[districtName]);
 
   const fetchProposal = () => {

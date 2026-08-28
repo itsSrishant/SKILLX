@@ -520,20 +520,49 @@ function DashboardInner() {
       setMetricsLoading(false); hasCache = true;
     }
     if (!hasCache) setMetricsLoading(true);
+
+    const safeFetch = async (endpoint: string) => {
+      try {
+        const url = API ? `${API}${endpoint}` : endpoint;
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+        const fallbackRes = await fetch(endpoint);
+        if (fallbackRes.ok) return await fallbackRes.json();
+        return null;
+      } catch {
+        try {
+          const fallbackRes = await fetch(endpoint);
+          if (fallbackRes.ok) return await fallbackRes.json();
+        } catch {}
+        return null;
+      }
+    };
+
     try {
-      const [m,g,d,s,ind,sg] = await Promise.all([
-        fetch(`${API}/api/v1/metrics/overview`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/gap-analysis`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/district-summary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/skills/dictionary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/industry-demand`).then(r=>r.json()).catch(()=>null),
-        fetch(`${API}/api/v1/analytics/skill-gap-summary`).then(r=>r.json()).catch(()=>null),
+      const [m, g, d, s, ind, sg] = await Promise.all([
+        safeFetch("/api/v1/metrics/overview"),
+        safeFetch("/api/v1/analytics/gap-analysis"),
+        safeFetch("/api/v1/analytics/district-summary"),
+        safeFetch("/api/v1/skills/dictionary"),
+        safeFetch("/api/v1/analytics/industry-demand"),
+        safeFetch("/api/v1/analytics/skill-gap-summary"),
       ]);
-      setMetrics(m); setGaps(Array.isArray(g)?g:[]); setDistricts(Array.isArray(d)?d:[]); setSkillDict(s);
-      setIndustryDemand(ind); setSkillGapSummary(sg);
-      dashMemoryCache = { m,g,d,s,ind,sg, ts:Date.now() };
-    } catch(e) { console.error(e); }
-    finally { setMetricsLoading(false); }
+
+      if (m) setMetrics(m);
+      if (Array.isArray(g)) setGaps(g);
+      if (Array.isArray(d)) setDistricts(d);
+      if (s) setSkillDict(s);
+      if (ind) setIndustryDemand(ind);
+      if (sg) setSkillGapSummary(sg);
+
+      if (m && Array.isArray(g)) {
+        dashMemoryCache = { m, g, d, s, ind, sg, ts: Date.now() };
+      }
+    } catch (e) {
+      console.error("Dashboard fetch error:", e);
+    } finally {
+      setMetricsLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -554,14 +583,23 @@ function DashboardInner() {
     setEngineRunning(true);
     const t0 = performance.now();
     try {
-      const r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST" });
-      const data = await r.json();
-      setEngineResult(data); await fetchAll();
-      const e1 = (data.engine1||{}) as Record<string,number>;
-      const changes = (e1.courses_added||0)+(e1.courses_updated||0);
-      setBatchToast(changes>0 ? `⚡ Pipeline Complete! ${changes} courses in ${data.total_latency_ms||Math.round(performance.now()-t0)}ms!` : `✓ System Up To Date — All Courses Synchronized!`);
-      setTimeout(()=>setBatchToast(null),6000);
-    } catch(e){console.error(e);}
+      let r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST" }).catch(() => null);
+      if (!r || !r.ok) {
+        r = await fetch(`/api/v1/engines/run-all`, { method:"POST" }).catch(() => null);
+      }
+      if (r && r.ok) {
+        const data = await r.json();
+        setEngineResult(data); await fetchAll();
+        const e1 = (data.engine1||{}) as Record<string,number>;
+        const changes = (e1.courses_added||0)+(e1.courses_updated||0);
+        setBatchToast(changes>0 ? `⚡ Pipeline Complete! ${changes} courses in ${data.total_latency_ms||Math.round(performance.now()-t0)}ms!` : `✓ System Up To Date — All Courses Synchronized!`);
+        setTimeout(()=>setBatchToast(null),6000);
+      } else {
+        setBatchToast("⚠️ Backend response timeout. Retrying DB fetch...");
+        await fetchAll();
+        setTimeout(()=>setBatchToast(null),4000);
+      }
+    } catch(e){ console.error(e); }
     finally { setEngineRunning(false); }
   };
 

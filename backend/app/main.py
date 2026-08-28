@@ -32,6 +32,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def auto_seed_on_startup():
+    """
+    Auto-seed SQLite database on startup if empty.
+    Ensures fresh git clones immediately have active courses, jobs, skills,
+    and gap analysis data ready for the dashboard.
+    """
+    db = next(get_db())
+    try:
+        total_c = db.query(Course).count()
+        if total_c == 0:
+            print("[SkillX Startup] Initializing empty DB with Engine 1-4 pipeline data...")
+            Engine1CourseIngestion(db).run_ingestion(limit=50)
+            Engine2JobIngestion(db).run_ingestion()
+            Engine3SkillExtraction(db).run_extraction()
+            Engine4SkillGapAnalysis(db).run_analysis()
+            print("[SkillX Startup] Database auto-seeding completed successfully!")
+    except Exception as e:
+        print(f"[SkillX Startup] Auto-seed warning: {e}")
+    finally:
+        db.close()
+
 pipeline_state = {
     "is_running": False,
     "current_engine": None,
