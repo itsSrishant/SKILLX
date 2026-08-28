@@ -1,5 +1,6 @@
 # Documentation / private project notes
-# (Allowing Markdown files to be tracked)
+*.md
+!README.md
 *.db-wal
 *.db-shm
 *.sqlite-wal
