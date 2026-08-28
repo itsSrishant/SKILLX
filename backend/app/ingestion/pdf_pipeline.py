@@ -38,7 +38,10 @@ class PDFCurriculumIngestor:
         return sha256.hexdigest()
 
     def detect_pdf_type(self) -> str:
-        """Determines if PDF is text-based, scanned, or mixed."""
+        \"\"\"Determines if PDF is text-based, scanned, or mixed.\"\"\"
+        if fitz is None:
+            raise ImportError("PyMuPDF (fitz) is not installed")
+        
         total_text_chars = 0
         pages_count = 0
         doc = fitz.open(self.pdf_path)
@@ -57,7 +60,10 @@ class PDFCurriculumIngestor:
             return "SCANNED"
 
     def extract_structured_json(self) -> Dict[str, Any]:
-        """Extracts canonical structured JSON with provenance tracking."""
+        \"\"\"Extracts canonical structured JSON with provenance tracking.\"\"\"
+        if fitz is None or pdfplumber is None:
+            raise ImportError("PDF libraries are not installed")
+
         pdf_type = self.detect_pdf_type()
         doc = fitz.open(self.pdf_path)
         

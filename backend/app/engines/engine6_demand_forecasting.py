@@ -70,25 +70,34 @@ Schema:
             job_titles = [j.title for j in jobs[:20]]
             user_prompt = f"Data for {district}:\nCurrent Job Postings: {', '.join(job_titles)}\nCurrent Skill Gaps: {', '.join(missing_skills[:15])}"
 
+            models_to_try = [llm_model]
+            if llm_model != "gemini-flash-lite-latest":
+                models_to_try.append("gemini-flash-lite-latest")
+
             for api_key in keys_to_try:
                 try:
                     genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel(
-                        model_name=llm_model,
-                        system_instruction=system_instruction,
-                        safety_settings=safety_settings,
-                    )
-                    response = model.generate_content(user_prompt)
-                    if response and response.text:
-                        text = response.text.strip()
-                        if text.startswith("```json"):
-                            text = text[7:]
-                        if text.startswith("```"):
-                            text = text[3:]
-                        if text.endswith("```"):
-                            text = text[:-3]
-                        text = text.strip()
-                        return json.loads(text)
+                    for current_model in models_to_try:
+                        try:
+                            model = genai.GenerativeModel(
+                                model_name=current_model,
+                                system_instruction=system_instruction,
+                                safety_settings=safety_settings,
+                            )
+                            response = model.generate_content(user_prompt)
+                            if response and response.text:
+                                text = response.text.strip()
+                                if text.startswith("```json"):
+                                    text = text[7:]
+                                if text.startswith("```"):
+                                    text = text[3:]
+                                if text.endswith("```"):
+                                    text = text[:-3]
+                                text = text.strip()
+                                return json.loads(text)
+                        except Exception as inner_e:
+                            logger.warning(f"Engine 6 Gemini attempt with model {current_model} failed: {inner_e}")
+                            continue
                 except Exception as e:
                     logger.warning(f"Gemini forecast call failed with key: {e}")
                     continue
