@@ -15,10 +15,25 @@ const translations = {
     // Sidebar items
     navOverview: "Overview",
     navCourses: "Courses",
+    navIndustry: "Industry Demand",
+    navDistrictPlan: "District Plan",
     navDistricts: "Districts",
     navGaps: "Skill Gaps",
     navBridge: "Bridge Packs",
     navCrawler: "Data Crawler",
+
+    // Government Intelligence
+    industryDemand: "Industry Demand Intelligence",
+    industryDemandSub: "Top skills demanded by Maharashtra's industrial sector",
+    districtPlan: "District Skill Development Plan",
+    districtPlanSub: "Generate actionable intervention plan for any district",
+    skillGapSummary: "State-Wide Skill Gap Summary",
+    traineeAtRisk: "Trainees At Risk",
+    mismatchIndex: "Skill Mismatch Index",
+    criticalDeficit: "Critical Deficit Courses",
+    interventionSimulator: "What-If Simulator",
+    generatePlan: "Generate Plan",
+    viewDistrictPlan: "View District Plan →",
 
     // Overview Cards & Highlights
     dvetTrades: "DVET ITI Trades",
@@ -115,10 +130,25 @@ const translations = {
     // Sidebar items
     navOverview: "पूर्वावलोकन",
     navCourses: "अभ्यासक्रम",
+    navIndustry: "उद्योग मागणी",
+    navDistrictPlan: "जिल्हा योजना",
     navDistricts: "जिल्हे",
     navGaps: "कौशल्य तफावत",
     navBridge: "ब्रिज पॅक",
     navCrawler: "डेटा क्रॉलर",
+
+    // Government Intelligence
+    industryDemand: "उद्योग मागणी बुद्धिमत्ता",
+    industryDemandSub: "महाराष्ट्रातील औद्योगिक क्षेत्राने मागणी केलेली शीर्ष कौशल्ये",
+    districtPlan: "जिल्हा कौशल्य विकास योजना",
+    districtPlanSub: "कोणत्याही जिल्ह्यासाठी कृती योजना तयार करा",
+    skillGapSummary: "राज्यव्यापी कौशल्य तफावत सारांश",
+    traineeAtRisk: "धोक्यात असलेले प्रशिक्षणार्थी",
+    mismatchIndex: "कौशल्य जुळवणी निर्देशांक",
+    criticalDeficit: "गंभीर तूट अभ्यासक्रम",
+    interventionSimulator: "काय-होईल सिम्युलेटर",
+    generatePlan: "योजना तयार करा",
+    viewDistrictPlan: "जिल्हा योजना पहा →",
 
     // Overview Cards & Highlights
     dvetTrades: "DVET ITI व्यवसाय",
@@ -215,10 +245,25 @@ const translations = {
     // Sidebar items
     navOverview: "अवलोकन",
     navCourses: "पाठ्यक्रम",
+    navIndustry: "उद्योग मांग",
+    navDistrictPlan: "जिला योजना",
     navDistricts: "जिले",
     navGaps: "कौशल अंतर",
     navBridge: "ब्रिज पैक",
     navCrawler: "डेटा क्रॉलर",
+
+    // Government Intelligence
+    industryDemand: "उद्योग मांग बुद्धिमत्ता",
+    industryDemandSub: "महाराष्ट्र के औद्योगिक क्षेत्र द्वारा माँगे गए शीर्ष कौशल",
+    districtPlan: "जिला कौशल विकास योजना",
+    districtPlanSub: "किसी भी जिले के लिए कार्य योजना बनाएं",
+    skillGapSummary: "राज्यव्यापी कौशल अंतर सारांश",
+    traineeAtRisk: "जोखिम में प्रशिक्षु",
+    mismatchIndex: "कौशल बेमेल सूचकांक",
+    criticalDeficit: "गंभीर घाटे वाले पाठ्यक्रम",
+    interventionSimulator: "क्या-होगा सिम्युलेटर",
+    generatePlan: "योजना बनाएं",
+    viewDistrictPlan: "जिला योजना देखें →",
 
     // Overview Cards & Highlights
     dvetTrades: "DVET ITI ट्रेड्स",

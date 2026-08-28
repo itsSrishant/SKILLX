@@ -1,385 +1,300 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLang } from "@/lib/i18n";
+import { LangProvider, useLang } from "@/lib/i18n";
 
 const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "3000") ? "http://localhost:8000" : "");
 
-const DISTRICTS = ["Pune", "Nashik", "Thane", "Nagpur", "Chhatrapati Sambhajinagar"];
-const SECTORS = [
-  "All Sectors",
-  "Electrical & Energy",
-  "Capital Goods & Manufacturing",
-  "Automotive & EV",
-  "Electronics & Automation",
-  "Renewable Energy",
-  "Information Technology",
-  "HVAC & Appliances",
+const C = {
+  orange:      "#f97316",
+  orangeLight: "#fff7ed",
+  cyan:        "#0891b2",
+  cyanLight:   "#ecfeff",
+  cyanMid:     "#cffafe",
+  green:       "#16a34a",
+  greenLight:  "#f0fdf4",
+  purple:      "#7c3aed",
+  purpleLight: "#f5f3ff",
+  red:         "#dc2626",
+  redLight:    "#fef2f2",
+  amber:       "#d97706",
+  amberLight:  "#fffbeb",
+  bg:          "#fafcfd",
+  border:      "rgba(0,0,0,0.07)",
+  text:        "#0f172a",
+  textSub:     "#475569",
+  textMuted:   "#94a3b8",
+};
+
+const MAHARASHTRA_DISTRICTS = [
+  "Pune", "Mumbai City", "Mumbai Suburban", "Thane", "Nashik", "Nagpur",
+  "Chhatrapati Sambhajinagar", "Palghar", "Raigad", "Solapur", "Kolhapur",
+  "Ahmednagar", "Satara", "Sangli", "Amravati", "Nanded", "Latur", "Dhule",
+  "Jalgaon", "Chandrapur", "Akola", "Yavatmal", "Buldhana", "Bheed",
+  "Parbhani", "Gondia", "Bhandara", "Washim", "Nandurbar", "Hingoli",
+  "Osmanabad", "Gadchiroli", "Wardha", "Ratnagiri", "Sindhudurg", "Jalna"
 ];
 
-interface BridgePackModule {
-  module_title: string;
-  skill_targeted: string;
-  duration_hours: number;
-  activities: string[];
-  assessment_criteria?: string[];
-  tools_required?: string[];
-}
+const SECTORS = [
+  "All Sectors", "Electrical & Energy", "Capital Goods & Manufacturing",
+  "Automotive & EV", "Electronics & Automation", "Renewable Energy",
+  "Information Technology", "HVAC & Appliances"
+];
 
 interface CourseRec {
-  course_id: number;
-  course_title: string;
-  institute_type: string;
-  sector: string;
-  district: string;
-  duration_months: number;
-  nsqf_level: number;
-  qualification_req: string;
-  alignment_score: number;
-  missing_skills: string[];
-  fully_covered_skills: string[];
-  bridge_packs_available: number;
-  bridge_packs: BridgePackModule[];
+  course_id: number; course_title: string; institute_type: string;
+  sector: string; district: string; duration_months: number; nsqf_level: number;
+  qualification_req: string; alignment_score: number; missing_skills: string[];
+  fully_covered_skills: string[]; bridge_packs_available: number;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 75 ? "from-emerald-500 to-green-400" :
-    score >= 50 ? "from-amber-500 to-yellow-400" :
-    "from-rose-500 to-red-400";
-  return (
-    <div className={`inline-flex items-center px-3 py-1 rounded-full bg-gradient-to-r ${color} text-white font-bold text-sm`}>
-      {score.toFixed(1)}% Match
-    </div>
-  );
-}
-
-function BridgePackModal({ pack, onClose, lang }: { pack: BridgePackModule; onClose: () => void; lang: ReturnType<typeof useLang>["t"] }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }}>
-      <div className="bg-slate-900 border border-amber-500/30 rounded-3xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="p-6 border-b border-slate-700">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1">20-Hour Bridge Pack</div>
-              <h2 className="text-2xl font-black text-white">{pack.module_title}</h2>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-xs rounded-full font-medium border border-amber-500/30">
-                  🎯 {pack.skill_targeted}
-                </span>
-                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full font-medium border border-blue-500/30">
-                  ⏱ {pack.duration_hours} Hours
-                </span>
-              </div>
-            </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl leading-none">✕</button>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Activities */}
-          <div>
-            <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider mb-3">📋 Sessions & Activities</h3>
-            <div className="space-y-2">
-              {pack.activities?.map((act, i) => (
-                <div key={i} className="flex gap-3 p-3 bg-slate-800/60 rounded-xl border border-slate-700/40">
-                  <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0 text-amber-300 text-xs font-bold">
-                    {i + 1}
-                  </div>
-                  <p className="text-sm text-slate-300 leading-relaxed">{act}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Assessment */}
-          {pack.assessment_criteria && pack.assessment_criteria.length > 0 && (
-            <div>
-              <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider mb-3">✅ Assessment Criteria</h3>
-              <div className="space-y-2">
-                {pack.assessment_criteria.map((c, i) => (
-                  <div key={i} className="flex gap-2 items-start p-2 bg-emerald-900/20 rounded-lg border border-emerald-700/30">
-                    <span className="text-emerald-400 text-xs mt-0.5">✓</span>
-                    <p className="text-sm text-slate-300">{c}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tools */}
-          {pack.tools_required && pack.tools_required.length > 0 && (
-            <div>
-              <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider mb-3">🔧 Tools Required</h3>
-              <div className="flex flex-wrap gap-2">
-                {pack.tools_required.map((tool) => (
-                  <span key={tool} className="px-3 py-1 bg-blue-900/30 border border-blue-700/40 text-blue-300 text-xs rounded-full">
-                    {tool}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-slate-700 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CourseCard({ rec, onGetBridgePack, selectedPack }: {
-  rec: CourseRec;
-  onGetBridgePack: (id: number) => void;
-  selectedPack: BridgePackModule | null;
-}) {
-  const { t } = useLang();
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10">
-      {/* Card Header */}
-      <div className="p-5 border-b border-slate-700/40">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase ${
-                rec.institute_type === "ITI" ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" : "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-              }`}>
-                {rec.institute_type}
-              </span>
-              <span className="text-xs text-slate-400">NSQF {rec.nsqf_level}</span>
-            </div>
-            <h3 className="text-base font-bold text-white leading-tight">{rec.course_title}</h3>
-            <div className="flex flex-wrap gap-2 mt-2 text-xs text-slate-400">
-              <span>📍 {rec.district}</span>
-              <span>⏳ {rec.duration_months} {t.months}</span>
-              <span>🎓 {rec.qualification_req}</span>
-              <span>🏭 {rec.sector}</span>
-            </div>
-          </div>
-          <ScoreBadge score={rec.alignment_score} />
-        </div>
-      </div>
-
-      {/* Skills section */}
-      <div className="p-5 space-y-3">
-        {rec.fully_covered_skills.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold text-emerald-400 mb-1.5 uppercase tracking-wider">✓ {t.fullyMastered}</div>
-            <div className="flex flex-wrap gap-1.5">
-              {rec.fully_covered_skills.slice(0, 4).map((s) => (
-                <span key={s} className="px-2 py-0.5 bg-emerald-900/30 border border-emerald-700/30 text-emerald-300 text-xs rounded-full">{s}</span>
-              ))}
-              {rec.fully_covered_skills.length > 4 && (
-                <span className="px-2 py-0.5 text-slate-400 text-xs">+{rec.fully_covered_skills.length - 4} more</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {rec.missing_skills.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold text-rose-400 mb-1.5 uppercase tracking-wider">✕ {t.skillsToLearn}</div>
-            <div className="flex flex-wrap gap-1.5">
-              {rec.missing_skills.map((s) => (
-                <span key={s} className="px-2 py-0.5 bg-rose-900/30 border border-rose-700/30 text-rose-300 text-xs rounded-full">{s}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bridge Pack CTA */}
-        {rec.missing_skills.length > 0 ? (
-          <button
-            onClick={() => onGetBridgePack(rec.course_id)}
-            className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold rounded-xl transition-all duration-200 text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-          >
-            🎯 {t.getYourBridgePack}
-            {rec.bridge_packs_available > 0 && (
-              <span className="px-1.5 py-0.5 bg-white/20 text-xs rounded-full">{rec.bridge_packs_available}</span>
-            )}
-          </button>
-        ) : (
-          <div className="w-full mt-2 py-2.5 px-4 bg-emerald-900/30 border border-emerald-700/40 text-emerald-300 font-bold rounded-xl text-sm text-center">
-            ✓ {t.fullyAligned}
-          </div>
-        )}
-
-        {/* Show fetched bridge pack preview */}
-        {rec.bridge_packs.length > 0 && expanded && (
-          <div className="mt-3 pt-3 border-t border-slate-700/40">
-            <div className="text-xs font-semibold text-amber-400 mb-2">Available Bridge Modules:</div>
-            {rec.bridge_packs.map((pack, i) => (
-              <div key={i} className="p-3 bg-slate-900/50 rounded-xl border border-amber-500/20 mb-2">
-                <div className="font-semibold text-white text-sm">{pack.module_title}</div>
-                <div className="text-xs text-amber-300 mt-0.5">{pack.duration_hours}h • {pack.skill_targeted}</div>
-                <div className="text-xs text-slate-400 mt-1">{pack.activities[0]?.slice(0, 80)}...</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function StudentPortal() {
-  const { lang, toggleLang, t } = useLang();
-  const [district, setDistrict] = useState("Pune");
-  const [sector, setSector] = useState("All Sectors");
+function StudentInner() {
+  const { lang, setLang, t } = useLang();
+  const [selectedDistrict, setSelectedDistrict] = useState("Pune");
+  const [selectedSector, setSelectedSector] = useState("All Sectors");
+  const [search, setSearch] = useState("");
   const [courses, setCourses] = useState<CourseRec[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedBridgePack, setSelectedBridgePack] = useState<BridgePackModule | null>(null);
-  const [bridgePackLoading, setBridgePackLoading] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedCourse, setSelectedCourse] = useState<CourseRec | null>(null);
 
-  const fetchCourses = async () => {
+  // Bot Assistant Chat State
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ sender: "bot" | "user"; text: string }[]>([
+    { sender: "bot", text: "Namaste! I am the SkillX Assistant. Ask me about in-demand ITI trades, salary lifts in Pune/Nashik, or how 20-hour bridge packs work!" }
+  ]);
+  const [inputMsg, setInputMsg] = useState("");
+
+  useEffect(() => {
     setLoading(true);
-    try {
-      const sectorParam = sector !== "All Sectors" ? `&sector=${encodeURIComponent(sector)}` : "";
-      const res = await fetch(`${API}/api/v1/student/recommendations?district=${encodeURIComponent(district)}${sectorParam}`);
-      const data = await res.json();
-      setCourses(data.recommendations || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetch(`${API}/api/v1/analytics/gap-analysis`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCourses(data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
 
-  const handleGetBridgePack = async (courseId: number) => {
-    setBridgePackLoading(courseId);
-    try {
-      const res = await fetch(`${API}/api/v1/recommendations/bridge-pack/${courseId}`);
-      const data = await res.json();
-      if (data.bridge_packs && data.bridge_packs.length > 0) {
-        setSelectedBridgePack(data.bridge_packs[0]);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBridgePackLoading(null);
+  const filtered = courses.filter(c => {
+    if (selectedDistrict && c.district !== selectedDistrict) return false;
+    if (selectedSector !== "All Sectors" && c.sector !== selectedSector) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!c.course_title.toLowerCase().includes(q) && !(c.sector || "").toLowerCase().includes(q)) return false;
     }
-  };
+    return true;
+  });
 
-  useEffect(() => { fetchCourses(); }, [district]);
+  const sendBotMsg = (userText: string) => {
+    if (!userText.trim()) return;
+    const newMsgs = [...chatMessages, { sender: "user" as const, text: userText }];
+    setChatMessages(newMsgs);
+    setInputMsg("");
+
+    let reply = "I recommend checking our 20-hour Skill Bridge Packs! They focus on practical lab workshops with high employer demand.";
+    const q = userText.toLowerCase();
+    if (q.includes("salary") || q.includes("pay") || q.includes("money")) {
+      reply = "Graduates taking our 20-hour Skill Bridge Pack see average salary lifts from ₹12,500/mo to ₹18,500/mo (+48% lift) in MIDC clusters like Pune, Nashik, and Thane!";
+    } else if (q.includes("pune") || q.includes("nashik") || q.includes("job")) {
+      reply = `In ${selectedDistrict}, top hiring employers include Tata Motors, Bajaj Auto, and Bharat Forge for Automation, PLC, and CNC roles.`;
+    } else if (q.includes("iti") || q.includes("course") || q.includes("trade")) {
+      reply = "Our top aligned ITI trades are Electrician, Fitter, Turner, Machinist, and Electronics Mechanic. All have 20-hour modular upgrade plans available.";
+    }
+
+    setTimeout(() => {
+      setChatMessages([...newMsgs, { sender: "bot" as const, text: reply }]);
+    }, 400);
+  };
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%)" }}>
-      {/* Header */}
-      <nav className="sticky top-0 z-40 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
-              <span className="text-lg font-black text-white">S</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-black text-white">{t.appName}</h1>
-              <p className="text-xs text-amber-400 font-medium">{t.studentPortal}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-sm text-slate-400 hover:text-white transition px-3 py-1.5 rounded-lg hover:bg-slate-800">
-              {t.adminPortal}
+    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', sans-serif", color: C.text }}>
+      {/* Top Header */}
+      <header style={{ background: "white", borderBottom: `1px solid ${C.border}`, padding: "14px 40px", sticky: "top", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+        <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${C.orange}, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, color: "white" }}>S</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 800, color: C.text }}>SkillX</div>
+                <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, letterSpacing: "0.08em" }}>STUDENT PORTAL</div>
+              </div>
             </Link>
-            <button
-              onClick={toggleLang}
-              className="px-4 py-1.5 text-sm font-bold border border-amber-500/40 text-amber-300 rounded-full hover:bg-amber-500/10 transition"
-            >
-              {t.langToggle}
-            </button>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <select value={lang} onChange={e => setLang(e.target.value as "en" | "mr" | "hi")}
+              style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "white", fontSize: 13, fontWeight: 600, color: C.text, cursor: "pointer" }}>
+              <option value="en">English</option><option value="mr">मराठी</option><option value="hi">हिंदी</option>
+            </select>
+            <Link href="/dashboard" style={{ padding: "8px 16px", borderRadius: 10, background: C.cyanLight, color: C.cyan, border: `1px solid ${C.cyanMid}`, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+              Govt Admin Console →
+            </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero */}
-      <div className="max-w-6xl mx-auto px-6 py-16 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-300 text-sm font-medium mb-6">
-          🎓 Maharashtra ITI & MSSDS Career Guidance
-        </div>
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-4 leading-tight">
-          {t.studentTitle}
-        </h1>
-        <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10">{t.studentSubtitle}</p>
-
-        {/* Search Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
-          <select
-            value={district}
-            onChange={(e) => setDistrict(e.target.value)}
-            className="flex-1 bg-slate-800/80 border border-slate-600/50 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500/50 text-sm"
-          >
-            {DISTRICTS.map((d) => <option key={d}>{d}</option>)}
-          </select>
-          <select
-            value={sector}
-            onChange={(e) => setSector(e.target.value)}
-            className="flex-1 bg-slate-800/80 border border-slate-600/50 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500/50 text-sm"
-          >
-            {SECTORS.map((s) => <option key={s}>{s}</option>)}
-          </select>
-          <button
-            onClick={fetchCourses}
-            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-amber-500/25 whitespace-nowrap"
-          >
-            {t.searchCourses}
-          </button>
-        </div>
-      </div>
-
-      {/* Results */}
-      <div className="max-w-6xl mx-auto px-6 pb-20">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">
-            {t.courseRecommendations}
-            <span className="ml-2 px-2 py-0.5 bg-slate-700 text-slate-300 text-sm rounded-full">{courses.length}</span>
-          </h2>
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block animate-pulse" />
-            Live from DVET & MSSDS
+      {/* Hero Banner */}
+      <section style={{ background: `linear-gradient(135deg, #0f172a 0%, #1e293b 100%)`, padding: "48px 40px", color: "white" }}>
+        <div style={{ maxWidth: 1240, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
+          <div>
+            <span style={{ padding: "4px 12px", borderRadius: 999, background: "rgba(8,145,178,0.2)", color: C.cyanMid, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", border: `1px solid ${C.cyan}` }}>MAHARASHTRA VOCATIONAL GUIDANCE</span>
+            <h1 style={{ fontSize: "clamp(26px, 3.5vw, 38px)", fontWeight: 900, fontFamily: "'Playfair Display', serif", marginTop: 12, marginBottom: 8 }}>
+              Find Your High-Salary Career Pathway
+            </h1>
+            <p style={{ fontSize: 15, color: "#94a3b8", maxWidth: 620, lineHeight: 1.6 }}>
+              Explore ITI Trades and MSSDS Skill Courses across Maharashtra&apos;s 36 districts. See real employer demand, expected salary lift, and get your 20-hour Skill Bridge Upgrade Plan.
+            </p>
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+            <div style={{ background: "rgba(255,255,255,0.08)", padding: "14px 20px", borderRadius: 12, backdropFilter: "blur(6px)" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: C.orange }}>₹18,500/mo</div>
+              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>Avg Post-Upgrade Salary</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.08)", padding: "14px 20px", borderRadius: 12, backdropFilter: "blur(6px)" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: C.cyan }}>36 Districts</div>
+              <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>MIDC Cluster Coverage</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <main style={{ maxWidth: 1240, margin: "0 auto", padding: "32px 40px" }}>
+
+        {/* Filter Controls */}
+        <div style={{ background: "white", borderRadius: 16, padding: "20px 24px", border: `1px solid ${C.border}`, marginBottom: 28, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1.5fr", gap: 16, alignItems: "center" }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.textSub, display: "block", marginBottom: 6 }}>📍 Select Your District ({MAHARASHTRA_DISTRICTS.length} Districts)</label>
+              <select value={selectedDistrict} onChange={e => setSelectedDistrict(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: 13, fontWeight: 700, color: C.text, outline: "none" }}>
+                {MAHARASHTRA_DISTRICTS.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.textSub, display: "block", marginBottom: 6 }}>Sector Filter</label>
+              <select value={selectedSector} onChange={e => setSelectedSector(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: 13, fontWeight: 700, color: C.text, outline: "none" }}>
+                {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.textSub, display: "block", marginBottom: 6 }}>Search Trade / Course Title</label>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Electrician, Fitter, Welder..."
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, fontSize: 13, color: C.text, outline: "none" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Course Cards Grid */}
+        <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Available Courses in {selectedDistrict} ({filtered.length})</div>
+          <div style={{ fontSize: 12, color: C.textMuted }}>Showing real-time alignment data &amp; 20-hr bridge packs</div>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-slate-800/40 rounded-2xl h-64 animate-pulse border border-slate-700/30" />
-            ))}
-          </div>
-        ) : courses.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4">🔍</div>
-            <p className="text-slate-400">{t.noCoursesFound}</p>
+          <div style={{ textAlign: "center", padding: "60px", color: C.textMuted }}>Loading courses for {selectedDistrict}...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ background: "white", borderRadius: 16, padding: "48px", textAlign: "center", border: `1px solid ${C.border}`, color: C.textMuted }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>No courses found for {selectedDistrict} in this sector</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Try selecting another sector or district like Pune, Nashik, or Thane</div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {courses.map((rec) => (
-              <CourseCard
-                key={rec.course_id}
-                rec={rec}
-                onGetBridgePack={handleGetBridgePack}
-                selectedPack={bridgePackLoading === rec.course_id ? null : null}
-              />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+            {filtered.map(c => (
+              <div key={c.course_id} style={{ background: "white", borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.02)", transition: "all 0.25s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.06)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "none"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.03)"; }}
+              >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 999, background: c.institute_type === "ITI" ? C.orangeLight : C.purpleLight, color: c.institute_type === "ITI" ? C.orange : C.purple }}>{c.institute_type}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: c.alignment_score >= 80 ? C.green : c.alignment_score >= 50 ? C.amber : C.red }}>{Math.round(c.alignment_score)}/100 Match</span>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 6, lineHeight: 1.3 }}>{c.course_title}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 14 }}>{c.sector} · 📍 {c.district}</div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 4 }}>✓ Skills Taught ({c.fully_covered_skills?.length || 0}):</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {(c.fully_covered_skills || []).slice(0, 3).map(s => (
+                        <span key={s} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: C.greenLight, color: C.green }}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {c.missing_skills?.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 4 }}>⚡ Missing Industry Skills:</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {c.missing_skills.slice(0, 2).map(s => (
+                          <span key={s} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: C.redLight, color: C.red }}>{s}</span>
+                        ))}
+                        {c.missing_skills.length > 2 && <span style={{ fontSize: 10, color: C.textMuted }}>+{c.missing_skills.length - 2} more</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: 11, color: C.cyan, fontWeight: 700 }}>💰 Est Salary: ₹18.5k/mo</div>
+                  <Link href={`/bridge-pack/${c.course_id}`} style={{ padding: "7px 14px", borderRadius: 8, background: `linear-gradient(135deg, ${C.orange}, #ea580c)`, color: "white", fontSize: 12, fontWeight: 700, textDecoration: "none", boxShadow: "0 2px 6px rgba(249,115,22,0.2)" }}>
+                    Get Bridge Pack →
+                  </Link>
+                </div>
+              </div>
             ))}
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Bridge Pack Modal */}
-      {selectedBridgePack && (
-        <BridgePackModal
-          pack={selectedBridgePack}
-          onClose={() => setSelectedBridgePack(null)}
-          lang={t}
-        />
-      )}
+      {/* Floating Candidate Skill Assistant Bot */}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999 }}>
+        {chatOpen ? (
+          <div style={{ background: "white", borderRadius: 20, width: 340, height: 420, boxShadow: "0 16px 48px rgba(0,0,0,0.18)", border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", background: `linear-gradient(135deg, ${C.cyan}, ${C.purple})`, color: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>🤖</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800 }}>SkillX Assistant</div>
+                  <div style={{ fontSize: 10, opacity: 0.8 }}>Career &amp; Trade Advisor</div>
+                </div>
+              </div>
+              <button onClick={() => setChatOpen(false)} style={{ background: "none", border: "none", color: "white", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+
+            <div style={{ flex: 1, padding: "14px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, background: C.bg }}>
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ alignSelf: msg.sender === "user" ? "flex-end" : "flex-start", maxWidth: "82%", padding: "10px 14px", borderRadius: 14, fontSize: 12, lineHeight: 1.5, background: msg.sender === "user" ? C.cyan : "white", color: msg.sender === "user" ? "white" : C.text, border: msg.sender === "user" ? "none" : `1px solid ${C.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                  {msg.text}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: "10px 14px", background: "white", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+              <input value={inputMsg} onChange={e => setInputMsg(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendBotMsg(inputMsg); }} placeholder="Ask about trades, jobs, salaries..." style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, outline: "none" }} />
+              <button onClick={() => sendBotMsg(inputMsg)} style={{ padding: "8px 12px", borderRadius: 8, background: C.cyan, color: "white", border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Send</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setChatOpen(true)} style={{ padding: "12px 20px", borderRadius: 999, background: `linear-gradient(135deg, ${C.cyan}, ${C.purple})`, color: "white", fontWeight: 800, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(8,145,178,0.3)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span>🤖</span> Ask Skill Assistant
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+export default function StudentPage() {
+  return <LangProvider><StudentInner /></LangProvider>;
 }

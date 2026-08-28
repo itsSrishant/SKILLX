@@ -435,6 +435,408 @@ def get_district_summary(db: Session = Depends(get_db)):
 
     return summary
 
+# ─── Phase 2: Government Intelligence Layer ────────────────────────────────────
+
+@app.get("/api/v1/analytics/industry-demand")
+def get_industry_demand(db: Session = Depends(get_db)):
+    """
+    Industry Demand Intelligence Panel.
+    Aggregates live job postings → extracted skills to rank the top skills demanded
+    by industry, broken down by sector and with employer density.
+    Powers the 'Industry Demand Intelligence' dashboard section.
+    """
+    all_jobs = db.query(JobPosting).filter(JobPosting.status == "ACTIVE").all()
+    job_skills = db.query(ExtractedSkill).filter(ExtractedSkill.source_type == "JOB").all()
+
+    # Index job metadata
+    job_sector_map: Dict[int, str] = {j.id: (j.sector or "General") for j in all_jobs}
+    job_company_map: Dict[int, str] = {j.id: j.company for j in all_jobs}
+
+    # Aggregate skill demand
+    skill_job_count: Dict[str, int] = defaultdict(int)
+    skill_employer_set: Dict[str, set] = defaultdict(set)
+    skill_sector_count: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    skill_category: Dict[str, str] = {}
+
+    for sk in job_skills:
+        if not sk.job_posting_id:
+            continue
+        name = sk.skill_name
+        skill_job_count[name] += 1
+        skill_employer_set[name].add(job_company_map.get(sk.job_posting_id, "Unknown"))
+        sector = job_sector_map.get(sk.job_posting_id, "General")
+        skill_sector_count[name][sector] += 1
+        if name not in skill_category:
+            skill_category[name] = sk.category or "Technical Skills"
+
+    total_jobs = max(1, len(all_jobs))
+
+    # Build ranked demand list
+    ranked = sorted(skill_job_count.items(), key=lambda x: x[1], reverse=True)[:30]
+
+    # Sector breakdown — top 5 sectors with their top skills
+    sector_demand: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for sk in job_skills:
+        if not sk.job_posting_id:
+            continue
+        sector = job_sector_map.get(sk.job_posting_id, "General")
+        sector_demand[sector][sk.skill_name] += 1
+
+    top_sectors = []
+    for sector, skills in sorted(sector_demand.items(), key=lambda x: sum(x[1].values()), reverse=True)[:6]:
+        top_s = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_sectors.append({
+            "sector": sector,
+            "total_job_demand": sum(skills.values()),
+            "top_skills": [{"skill": s, "count": c} for s, c in top_s]
+        })
+
+    return {
+        "total_jobs_analyzed": total_jobs,
+        "total_unique_skills_demanded": len(skill_job_count),
+        "top_demanded_skills": [
+            {
+                "rank": i + 1,
+                "skill": skill,
+                "job_count": count,
+                "demand_pct": round((count / total_jobs) * 100, 1),
+                "unique_employers": len(skill_employer_set[skill]),
+                "category": skill_category.get(skill, "Technical Skills"),
+                "top_sector": max(skill_sector_count[skill].items(), key=lambda x: x[1])[0] if skill_sector_count[skill] else "General",
+            }
+            for i, (skill, count) in enumerate(ranked)
+        ],
+        "sector_breakdown": top_sectors,
+    }
+
+
+@app.get("/api/v1/analytics/skill-gap-summary")
+def get_skill_gap_summary(db: Session = Depends(get_db)):
+    """
+    Quantified Skill Gap Summary for government decision makers.
+    Answers: How many trainees are at risk? What % of courses have critical gaps?
+    What is the estimated economic cost of inaction?
+    """
+    gap_records = db.query(SkillGapAnalysis).all()
+    courses = db.query(Course).filter(Course.status == "ACTIVE").all()
+    course_map = {c.id: c for c in courses}
+
+    total_courses = len(gap_records)
+    if total_courses == 0:
+        return {"status": "NO_DATA", "message": "Run pipeline first to generate gap analysis."}
+
+    critical_gaps = [g for g in gap_records if g.alignment_score < 50]
+    moderate_gaps = [g for g in gap_records if 50 <= g.alignment_score < 80]
+    aligned = [g for g in gap_records if g.alignment_score >= 80]
+
+    # Trainees at risk — sum intake capacities of courses with critical gaps
+    critical_course_ids = {g.course_id for g in critical_gaps}
+    trainees_at_risk = sum(
+        course_map[cid].intake_capacity
+        for cid in critical_course_ids
+        if cid in course_map
+    )
+    moderate_course_ids = {g.course_id for g in moderate_gaps}
+    trainees_at_moderate_risk = sum(
+        course_map[cid].intake_capacity
+        for cid in moderate_course_ids
+        if cid in course_map
+    )
+
+    # Top missing skills across all courses (state-wide deficit)
+    missing_freq: Dict[str, int] = defaultdict(int)
+    for g in gap_records:
+        for s in (g.missing_skills or []):
+            missing_freq[s] += 1
+
+    top_state_deficits = sorted(missing_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Skill mismatch index: avg percentage of demanded skills NOT in syllabi
+    mismatch_scores = [100 - g.alignment_score for g in gap_records]
+    avg_mismatch_pct = round(sum(mismatch_scores) / len(mismatch_scores), 1) if mismatch_scores else 0
+
+    # Economic impact estimate: avg salary loss per trainee × affected trainees
+    # Using conservative estimate: ₹6,000/month salary gap × 12 months for critical
+    monthly_salary_gap = 6000
+    estimated_annual_income_loss = trainees_at_risk * monthly_salary_gap * 12
+
+    return {
+        "total_courses_analyzed": total_courses,
+        "critical_deficit_courses": len(critical_gaps),
+        "critical_deficit_pct": round((len(critical_gaps) / total_courses) * 100, 1),
+        "moderate_gap_courses": len(moderate_gaps),
+        "moderate_gap_pct": round((len(moderate_gaps) / total_courses) * 100, 1),
+        "aligned_courses": len(aligned),
+        "aligned_pct": round((len(aligned) / total_courses) * 100, 1),
+        "trainees_at_critical_risk": trainees_at_risk,
+        "trainees_at_moderate_risk": trainees_at_moderate_risk,
+        "total_trainees_at_risk": trainees_at_risk + trainees_at_moderate_risk,
+        "avg_skill_mismatch_pct": avg_mismatch_pct,
+        "estimated_annual_income_loss_inr": estimated_annual_income_loss,
+        "state_wide_top_deficits": [
+            {"skill": s, "courses_affected": c} for s, c in top_state_deficits
+        ],
+    }
+
+
+@app.get("/api/v1/districts/{district_name}/plan")
+def get_district_plan(district_name: str, db: Session = Depends(get_db)):
+    """
+    District Skill Development Plan Generator.
+    Generates a structured, actionable government plan for a specific district.
+    Covers: priority skills, affected courses, trainees at risk, employer context,
+    recommended interventions and estimated ROI.
+    """
+    courses = db.query(Course).filter(
+        Course.status == "ACTIVE", Course.district == district_name
+    ).all()
+
+    if not courses:
+        raise HTTPException(status_code=404, detail=f"No courses found for district: {district_name}")
+
+    course_ids = [c.id for c in courses]
+    course_map = {c.id: c for c in courses}
+
+    gap_records = db.query(SkillGapAnalysis).filter(
+        SkillGapAnalysis.course_id.in_(course_ids)
+    ).all()
+
+    jobs = db.query(JobPosting).filter(
+        JobPosting.status == "ACTIVE",
+        JobPosting.district == district_name
+    ).all()
+
+    # 1. Priority skill gaps in this district
+    missing_freq: Dict[str, int] = defaultdict(int)
+    missing_courses: Dict[str, List[str]] = defaultdict(list)
+    for g in gap_records:
+        course = course_map.get(g.course_id)
+        for s in (g.missing_skills or []):
+            missing_freq[s] += 1
+            if course:
+                missing_courses[s].append(course.title)
+
+    top_gaps = sorted(missing_freq.items(), key=lambda x: x[1], reverse=True)[:8]
+
+    # 2. Compute district alignment summary
+    avg_score = round(sum(g.alignment_score for g in gap_records) / len(gap_records), 1) if gap_records else 0
+    critical_courses = [g for g in gap_records if g.alignment_score < 50]
+    moderate_courses = [g for g in gap_records if 50 <= g.alignment_score < 80]
+
+    # 3. Trainees at risk
+    critical_ids = {g.course_id for g in critical_courses}
+    trainees_critical = sum(course_map[cid].intake_capacity for cid in critical_ids if cid in course_map)
+    moderate_ids = {g.course_id for g in moderate_courses}
+    trainees_moderate = sum(course_map[cid].intake_capacity for cid in moderate_ids if cid in course_map)
+
+    # 4. Sector analysis
+    sector_gaps: Dict[str, List[float]] = defaultdict(list)
+    for g in gap_records:
+        c = course_map.get(g.course_id)
+        if c:
+            sector_gaps[c.sector or "General"].append(g.alignment_score)
+    sector_summary = [
+        {
+            "sector": sector,
+            "course_count": len(scores),
+            "avg_score": round(sum(scores) / len(scores), 1),
+            "status": "CRITICAL" if (sum(scores) / len(scores)) < 50 else ("MODERATE" if (sum(scores) / len(scores)) < 80 else "ALIGNED")
+        }
+        for sector, scores in sorted(sector_gaps.items(), key=lambda x: sum(x[1]) / len(x[1]))
+    ]
+
+    # 5. Top employers in district
+    employer_freq: Dict[str, int] = defaultdict(int)
+    for j in jobs:
+        employer_freq[j.company] += 1
+    top_employers = sorted(employer_freq.items(), key=lambda x: x[1], reverse=True)[:6]
+
+    # 6. Priority interventions — top 5 missing skills with impact scores
+    interventions = []
+    for skill, count in top_gaps[:5]:
+        impact_score = min(100, count * 18)  # Scaled impact score
+        affected_courses_list = list(set(missing_courses[skill]))[:4]
+        interventions.append({
+            "skill": skill,
+            "courses_affected": count,
+            "affected_course_names": affected_courses_list,
+            "priority_score": impact_score,
+            "recommended_hours": 20,
+            "estimated_trainees_benefited": count * 30,
+            "estimated_salary_lift_pct": 28,
+        })
+
+    # 7. Deficit status
+    deficit_status = (
+        "CRITICAL" if avg_score < 50
+        else ("HIGH DEFICIT" if avg_score < 65
+              else ("MODERATE" if avg_score < 80 else "ALIGNED"))
+    )
+
+    return {
+        "district": district_name,
+        "plan_generated_at": __import__("datetime").datetime.utcnow().isoformat(),
+        "total_courses": len(courses),
+        "total_jobs": len(jobs),
+        "avg_alignment_score": avg_score,
+        "deficit_status": deficit_status,
+        "critical_deficit_courses": len(critical_courses),
+        "moderate_gap_courses": len(moderate_courses),
+        "trainees_at_critical_risk": trainees_critical,
+        "trainees_at_moderate_risk": trainees_moderate,
+        "total_trainees_at_risk": trainees_critical + trainees_moderate,
+        "sector_summary": sector_summary,
+        "top_skill_gaps": [
+            {
+                "rank": i + 1,
+                "skill": s,
+                "courses_affected": c,
+                "affected_course_names": list(set(missing_courses[s]))[:3],
+            }
+            for i, (s, c) in enumerate(top_gaps)
+        ],
+        "priority_interventions": interventions,
+        "top_employers": [{"company": c, "job_count": n} for c, n in top_employers],
+    }
+
+
+
+@app.get("/api/v1/districts/{district_name}/proposal")
+def get_district_policy_proposal(district_name: str, db: Session = Depends(get_db)):
+    """
+    Automated NCVET & MSSDS Curriculum Revision Proposal Generator.
+    Generates a formal government memo for state skill development officers.
+    """
+    plan = get_district_plan(district_name, db)
+    date_str = __import__("datetime").datetime.utcnow().strftime("%d %B %Y")
+    memo_id = f"MEMO/DVET/{district_name.upper().slice(0,3) if hasattr(district_name, 'slice') else district_name.upper()[:3]}/2026/089"
+
+    interventions_text = []
+    for idx, item in enumerate(plan["priority_interventions"][:3]):
+        interventions_text.append(
+            f"{idx+1}. Integration of '{item['skill']}' ({item['recommended_hours']}-hour module) across {item['courses_affected']} ITI trades. "
+            f"Estimated impact: {item['estimated_trainees_benefited']} trainees benefited with +{item['estimated_salary_lift_pct']}% salary lift."
+        )
+
+    proposal_text = (
+        f"OFFICIAL GOVERNMENT POLICY MEMORANDUM\n"
+        f"REF: {memo_id}\n"
+        f"DATE: {date_str}\n"
+        f"TO: National Council for Vocational Education and Training (NCVET) & MSSDS\n"
+        f"FROM: Department of Skills & Employment, Government of Maharashtra\n"
+        f"SUBJECT: Urgent Curriculum Alignment & 20-Hour Skill Bridge Authorization for {district_name} District\n\n"
+        f"1. EXECUTIVE SUMMARY:\n"
+        f"Empirical labour market scanning across {plan['total_jobs']} active job postings in {district_name} reveals an average skill alignment score of {plan['avg_alignment_score']}/100. "
+        f"A total of {plan['critical_deficit_courses']} vocational courses exhibit critical skill deficits, placing {plan['total_trainees_at_risk']} trainees at immediate risk of underemployment.\n\n"
+        f"2. RECOMMENDED CURRICULUM UPGRADES:\n"
+        + "\n".join(interventions_text) + "\n\n"
+        f"3. PROCUREMENT & INFRASTRUCTURE SPECIFICATION:\n"
+        f"Equipment for practical workshops is available under Government e-Marketplace (GeM) specifications. "
+        f"Funding is proposed under PMKVY 4.0 / State Skill Mission allocation.\n\n"
+        f"4. ACTION REQUESTED:\n"
+        f"Approval of 20-hour modular Skill Bridge Packs for immediate implementation in Phase 1 (Q3 2025)."
+    )
+
+    return {
+        "memo_id": memo_id,
+        "district": district_name,
+        "date": date_str,
+        "recipient": "NCVET & MSSDS Governing Council",
+        "sender": "Directorate of Vocational Education & Training (DVET), Maharashtra",
+        "subject": f"Urgent Curriculum Revision Memo for {district_name} District",
+        "summary": f"{plan['critical_deficit_courses']} critical deficit courses identified affecting {plan['total_trainees_at_risk']} trainees.",
+        "full_text": proposal_text,
+        "interventions": plan["priority_interventions"],
+        "download_filename": f"NCVET_Proposal_{district_name}_2026.txt"
+    }
+
+
+@app.api_route("/api/v1/analytics/intervention-simulator", methods=["GET", "POST"])
+def simulate_intervention(
+    district: str = "Pune",
+    skill: str = "PLC Programming & Troubleshooting",
+    proposed_hours: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    What-If Intervention Simulator.
+    Deterministic calculator: given a district + skill + proposed training hours,
+    estimate the improvement in alignment score, affected courses, and employability delta.
+    Zero LLM — fully rule-based calculation.
+    """
+    # Find courses in district that are missing this skill
+    courses = db.query(Course).filter(
+        Course.status == "ACTIVE", Course.district == district
+    ).all()
+    course_ids = [c.id for c in courses]
+
+    gaps = db.query(SkillGapAnalysis).filter(
+        SkillGapAnalysis.course_id.in_(course_ids)
+    ).all()
+
+    skill_lower = skill.lower()
+    affected_gaps = [
+        g for g in gaps
+        if any(skill_lower in ms.lower() for ms in (g.missing_skills or []))
+    ]
+
+    if not affected_gaps:
+        return {
+            "district": district,
+            "skill": skill,
+            "proposed_hours": proposed_hours,
+            "courses_affected": 0,
+            "message": f"No courses in {district} are currently missing '{skill}'. This skill gap may already be covered."
+        }
+
+    # Score improvement model:
+    # - Each missing skill contributes roughly (100 - current_score) / missing_count to potential score gain
+    # - 20 hours = full skill coverage = ~full gain for that skill
+    # - Fewer hours = proportional coverage
+    coverage_factor = min(1.0, proposed_hours / 20.0)
+
+    score_improvements = []
+    for g in affected_gaps:
+        missing_count = max(1, len(g.missing_skills or []))
+        potential_gain = (100 - g.alignment_score) / missing_count
+        actual_gain = potential_gain * coverage_factor
+        score_improvements.append({
+            "course_id": g.course_id,
+            "current_score": round(g.alignment_score, 1),
+            "estimated_new_score": min(100, round(g.alignment_score + actual_gain, 1)),
+            "score_gain": round(actual_gain, 1),
+        })
+
+    avg_gain = sum(s["score_gain"] for s in score_improvements) / len(score_improvements)
+    affected_course_count = len(affected_gaps)
+    course_map = {c.id: c for c in courses}
+    trainees_benefited = sum(
+        course_map[g.course_id].intake_capacity
+        for g in affected_gaps
+        if g.course_id in course_map
+    )
+
+    return {
+        "district": district,
+        "skill": skill,
+        "proposed_hours": proposed_hours,
+        "coverage_factor_pct": round(coverage_factor * 100, 0),
+        "courses_affected": affected_course_count,
+        "trainees_benefited": trainees_benefited,
+        "avg_alignment_score_gain": round(avg_gain, 1),
+        "estimated_employability_lift_pct": round(avg_gain * 0.4, 1),
+        "estimated_salary_lift_inr": round(avg_gain * 180, 0),
+        "course_level_impact": score_improvements[:5],
+        "recommendation": (
+            "HIGH IMPACT — Strongly recommended for immediate rollout."
+            if avg_gain > 8 else
+            "MODERATE IMPACT — Consider as part of a broader curriculum review."
+            if avg_gain > 4 else
+            "LOW IMPACT — This skill may only partially address the alignment gap."
+        ),
+    }
+
+
 # ─── Phase 3: LLM Bridge Pack Routes ──────────────────────────────────────────
 
 @app.get("/api/v1/recommendations/bridge-pack/{course_id}")

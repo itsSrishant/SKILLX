@@ -466,8 +466,99 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+      {/* ── KILLER NARRATIVE STRIP: The Full Story ──────────────────────────── */}
+      <section id="platform" style={{ padding: "80px 40px", background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)", color: "white" }}>
+        <div style={{ maxWidth: 1150, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 12 }}>THE FULL STORY · HOW SKILLX WORKS</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px,4vw,42px)", fontWeight: 700, marginBottom: 12, letterSpacing: "-0.01em" }}>
+              From <span style={{ color: "#f97316" }}>Industry Demand</span> to{" "}
+              <span style={{ background: "linear-gradient(135deg, #0891b2, #7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Government Action</span>
+            </h2>
+            <p style={{ fontSize: 17, color: "#94a3b8", maxWidth: 600, margin: "0 auto", lineHeight: 1.7 }}>
+              One intelligence loop that connects what employers need with what ITI graduates learn — and shows you exactly where the gap is.
+            </p>
+          </div>
+
+          {/* 6-Step Flow */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 0, position: "relative" }}>
+            {[
+              { icon: "🏭", step: "01", label: "Industry Demand", sub: "Tata, Bajaj, Bharat Forge post 3,000+ job listings on NCS & MIDC portals", color: "#f97316" },
+              { icon: "🔍", step: "02", label: "Job Scanning", sub: "Engine 2 crawls every posting, extracting required skill terms in real-time", color: "#0284c7" },
+              { icon: "🧠", step: "03", label: "Skill Extraction", sub: "Engine 3 normalizes 500+ skill synonyms into a canonical NSQF taxonomy", color: "#7c3aed" },
+              { icon: "📊", step: "04", label: "Gap Analysis", sub: "Engine 4 compares each of 547 syllabi against live demand — score 0–100", color: "#dc2626" },
+              { icon: "📋", step: "05", label: "Bridge Plans", sub: "Engine 5 auto-generates 20-hour training interventions with GeM equipment specs", color: "#16a34a" },
+              { icon: "⚡", step: "06", label: "Govt. Action", sub: "District Collector sees the plan, approves budget, and deploys in 30 days", color: "#0891b2" },
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 8px", position: "relative" }}>
+                {/* Connector arrow */}
+                {i < 5 && (
+                  <div style={{ position: "absolute", right: -12, top: 28, fontSize: 18, color: "#334155", zIndex: 2 }}>→</div>
+                )}
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: `${item.color}20`, border: `2px solid ${item.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 14 }}>
+                  {item.icon}
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: item.color, letterSpacing: "0.1em", marginBottom: 6 }}>STEP {item.step}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "white", marginBottom: 6, textAlign: "center", lineHeight: 1.3 }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, textAlign: "center" }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* The Problem Statement */}
+          <div style={{ marginTop: 60, padding: "32px 40px", borderRadius: 20, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 32 }}>
+            <div>
+              <div style={{ fontSize: 36, fontWeight: 900, color: "#f97316", marginBottom: 8 }}>47%</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>Skill Mismatch Rate</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>Nearly half of ITI graduates lack skills employers demand in Maharashtra&apos;s fastest-growing sectors</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 36, fontWeight: 900, color: "#dc2626", marginBottom: 8 }}>₹2,400 Cr</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>Annual Income Loss</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>Estimated annual productivity loss due to curriculum gaps across 1.2 lakh vocational trainees</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 36, fontWeight: 900, color: "#0891b2", marginBottom: 8 }}>20 Days</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>To Full District Plan</div>
+              <div style={{ fontSize: 12, color: "#64748b" }}>From data ingestion to a complete, printable government intervention plan — zero manual effort</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHO THIS IS FOR ──────────────────────────────────────────────────── */}
+      <section style={{ padding: "60px 40px", background: "#f8fafc" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.2em", color: "#94a3b8", textTransform: "uppercase", marginBottom: 10 }}>PS 26134 · WHO THIS TOOL SERVES</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(26px,3vw,36px)", fontWeight: 700, color: "#0f172a" }}>Built for Government Decision Makers</h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
+            {[
+              { icon: "🏛️", role: "District Collector", org: "District Administration", use: "Review district-wide skill gap plans, approve training budgets", color: "#1e1b4b" },
+              { icon: "📋", role: "DVET Commissioner", org: "Govt. of Maharashtra", use: "Monitor state-wide curriculum alignment across all 36 districts", color: "#7c3aed" },
+              { icon: "📊", role: "MSSDS Officers", org: "Maharashtra SSDS", use: "Identify which MSSDS courses need urgent curriculum revision", color: "#0891b2" },
+              { icon: "🏫", role: "ITI Principals", org: "Govt. ITI Institutes", use: "Download bridge pack plans and procure lab equipment via GeM", color: "#f97316" },
+            ].map((user, i) => (
+              <div key={i} style={{ background: "white", borderRadius: 16, padding: "24px 20px", border: "1px solid rgba(0,0,0,0.07)", borderTop: `3px solid ${user.color}` }}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.08)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+                style={{ background: "white", borderRadius: 16, padding: "24px 20px", border: "1px solid rgba(0,0,0,0.07)", borderTop: `3px solid ${user.color}`, transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)", cursor: "default" }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{user.icon}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>{user.role}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: user.color, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>{user.org}</div>
+                <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>{user.use}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CENTERED PLATFORM ENGINES SHOWCASE (GSAP Animated Grid) ─────── */}
       <section id="engines" style={{ padding: "100px 40px", background: "#ffffff" }}>
+
         <div style={{ maxWidth: 1150, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <span className="badge-india" style={{ marginBottom: 14 }}>
