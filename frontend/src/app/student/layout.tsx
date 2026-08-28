@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { LangProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "SkillX — Student Portal | Find Your Course & Skill Bridge Plan",
+  title: "SkillX — Student Portal | Discover Your Skill Path",
   description:
-    "Maharashtra ITI & MSSDS student portal. Discover courses in your district, see your skill gap, and get a free 20-hour Skill Bridge Pack recommendation.",
+    "Maharashtra ITI & MSSDS student portal. Discover courses in your district, see your skill gap, get a personalised 20-hour Skill Bridge Pack, and navigate your career pathway.",
 };
 
 export default function StudentLayout({
@@ -12,5 +11,5 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <LangProvider>{children}</LangProvider>;
+  return <>{children}</>;
 }

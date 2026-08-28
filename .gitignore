@@ -1,5 +1,10 @@
 # Documentation / private project notes
 *.md
+!README.md
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
 
 # Environment variables / secrets
 .env

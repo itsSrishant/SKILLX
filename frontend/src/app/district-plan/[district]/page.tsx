@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "3000") ? "http://localhost:8000" : "");
 
 const C = {
-  orange:"#f97316",orangeLight:"#fff7ed",
+  orange:"#f97316",orangeLight:"#fff7ed",orangeMid:"#fdba74",
   cyan:"#0891b2",cyanLight:"#ecfeff",cyanMid:"#cffafe",
   green:"#16a34a",greenLight:"#f0fdf4",
   purple:"#7c3aed",purpleLight:"#f5f3ff",
@@ -99,17 +99,31 @@ export default function DistrictPlanPage() {
 
   useEffect(()=>{
     if(!districtName) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    fetch(`${API}/api/v1/districts/${encodeURIComponent(districtName)}/plan`)
-      .then(r=>{if(!r.ok)throw new Error(`No data for: ${districtName}`);return r.json();})
-      .then(d=>{
-        setData(d);
-        setLoading(false);
-        if(d.top_skill_gaps && d.top_skill_gaps.length > 0) {
-          setSimSkill(d.top_skill_gaps[0].skill);
+    const fetchPlan = async () => {
+      try {
+        const endpoint = `/api/v1/districts/${encodeURIComponent(districtName)}/plan`;
+        let r = await fetch(API ? `${API}${endpoint}` : endpoint).catch(() => null);
+        if (!r || !r.ok) {
+          r = await fetch(endpoint).catch(() => null);
         }
-      })
-      .catch(err=>{setError(err.message);setLoading(false);});
+        if (r && r.ok) {
+          const d = await r.json();
+          setData(d);
+          setLoading(false);
+          if (d.top_skill_gaps && d.top_skill_gaps.length > 0) {
+            setSimSkill(d.top_skill_gaps[0].skill);
+          }
+          return;
+        }
+        throw new Error(`District Plan data for ${districtName} is initializing...`);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
+        setLoading(false);
+      }
+    };
+    fetchPlan();
   },[districtName]);
 
   const fetchProposal = () => {

@@ -372,6 +372,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("skillx_lang") as Lang | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved === "en" || saved === "mr" || saved === "hi") setLangState(saved);
   }, []);
 

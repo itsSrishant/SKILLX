@@ -156,6 +156,7 @@ function GoalCircleLoader({ text }: { text?: string }) {
 }
 
 // Module-level in-memory cache for bridge packs
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const bpMemoryCache = new Map<string, any>();
 
 export default function BridgePackPage() {
@@ -180,6 +181,7 @@ export default function BridgePackPage() {
     if (bpMemoryCache.has(courseId)) {
       const cached = bpMemoryCache.get(courseId);
       if (cached && cached.course_id) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setData(cached);
         setLoading(false); // Instant 0ms load!
         hasCache = true;
