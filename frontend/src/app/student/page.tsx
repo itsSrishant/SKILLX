@@ -534,12 +534,12 @@ function SkillUpgradeModal({
   ].slice(0, course.alignment_score >= 70 ? 4 : 2);
 
   return (
-    <div style={{
+    <div className="upgrade-modal-overlay" style={{
       position: "fixed", inset: 0, zIndex: 9998,
       background: "rgba(15,23,42,0.70)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
+      <div className="upgrade-modal-card" style={{
         background: C.card, borderRadius: 20, width: "100%", maxWidth: 640,
         maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column",
         boxShadow: "0 32px 80px rgba(0,0,0,0.25)",
@@ -567,6 +567,18 @@ function SkillUpgradeModal({
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <AlignmentRing score={Math.round(course.alignment_score)} size={56} />
+              
+              <button id="print-advisory-btn" onClick={() => window.print()} style={{
+                background: C.cyan, border: "none", borderRadius: 8,
+                color: "white", fontSize: 12, fontWeight: 700, padding: "8px 14px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s"
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.cyanMid; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = C.cyan; }}
+              >
+                <span>🖨️</span> Print Plan
+              </button>
+
               <button onClick={onClose} style={{
                 background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8,
                 color: "white", fontSize: 18, width: 34, height: 34, cursor: "pointer",
@@ -796,6 +808,97 @@ function SkillUpgradeModal({
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 🖨️ Printable Student Guide (Hidden on screen, visible in print) */}
+      <div className="printable-student-guide" style={{ display: "none" }}>
+        <div style={{ padding: "40px", border: "2px solid #0f172a", borderRadius: 12, background: "white", fontFamily: "'Inter', sans-serif" }}>
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "3px solid #ff9933", paddingBottom: 20, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#ff9933", letterSpacing: "0.1em", textTransform: "uppercase" }}>MAHARASHTRA VOCATIONAL SKILLS PLATFORM</div>
+              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 800, color: "#0f172a", margin: "6px 0 0 0" }}>SkillX Curriculum Upgrade Plan</h1>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "#64748b" }}>STUDENT COPY</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>SIH 2026 Prototype</div>
+            </div>
+          </div>
+
+          {/* Target Course Details */}
+          <div style={{ background: "#f8fafc", padding: 16, borderRadius: 8, border: "1px solid #e2e8f0", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px 0" }}>Target Course & Training</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13, color: "#334155" }}>
+              <div><strong>Course Title:</strong> {course.course_title} ({course.institute_type})</div>
+              <div><strong>Sector:</strong> {course.sector}</div>
+              <div><strong>District Location:</strong> {course.district}</div>
+              <div><strong>Current Placement Match:</strong> {Math.round(course.alignment_score)}%</div>
+            </div>
+          </div>
+
+          {/* Mastered & Missing Skills Side-by-Side */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+            {/* Mastered Skills */}
+            <div style={{ padding: 16, border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#16a34a", textTransform: "uppercase", marginBottom: 8 }}>✓ Mastered Skills (Curriculum Covered)</div>
+              {course.fully_covered_skills.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#64748b" }}>None detected</div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {course.fully_covered_skills.map(s => (
+                    <span key={s} style={{ fontSize: 11, padding: "2px 8px", background: "white", border: "1px solid #bbf7d0", color: "#15803d", borderRadius: 4, fontWeight: 600 }}>{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Missing Skills */}
+            <div style={{ padding: 16, border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#dc2626", textTransform: "uppercase", marginBottom: 8 }}>✕ Missing Skills (Industry Deficit Gaps)</div>
+              {course.missing_skills.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#64748b" }}>None detected</div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {course.missing_skills.map(s => (
+                    <span key={s} style={{ fontSize: 11, padding: "2px 8px", background: "white", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: 4, fontWeight: 600 }}>{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recommended 20-Hour Upgrade Timeline */}
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>Recommended 20-Hour Modular Upgrade Path</h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: "#0f172a", color: "white", textAlign: "left" }}>
+                  <th style={{ padding: "8px 12px", border: "1px solid #0f172a" }}>Module</th>
+                  <th style={{ padding: "8px 12px", border: "1px solid #0f172a" }}>Topic / Target Skill</th>
+                  <th style={{ padding: "8px 12px", border: "1px solid #0f172a" }}>Duration</th>
+                  <th style={{ padding: "8px 12px", border: "1px solid #0f172a" }}>Learning Activities</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roadmapSteps.map((step, idx) => (
+                  <tr key={idx} style={{ background: idx % 2 === 0 ? "#f8fafc" : "white" }}>
+                    <td style={{ padding: "8px 12px", border: "1px solid #cbd5e1", fontWeight: 700 }}>Module {idx + 1}: {step.title}</td>
+                    <td style={{ padding: "8px 12px", border: "1px solid #cbd5e1", color: "#0891b2", fontWeight: 700 }}>{step.skill}</td>
+                    <td style={{ padding: "8px 12px", border: "1px solid #cbd5e1", fontWeight: 600 }}>{step.hours} Hours</td>
+                    <td style={{ padding: "8px 12px", border: "1px solid #cbd5e1", color: "#475569" }}>
+                      {step.activities.join(", ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer Disclaimer */}
+          <div style={{ borderTop: "1px solid #cbd5e1", paddingTop: 12, textAlign: "center", fontSize: 10, color: "#64748b" }}>
+            Generated on {new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'})} — SkillX Student Advisory, Govt. of Maharashtra (SIH 2026 prototype submission)
+          </div>
         </div>
       </div>
     </div>
@@ -1421,8 +1524,7 @@ function StudentInner() {
   }, [selectedDistrict, selectedSectors, search]);
 
   // ── Load courses from real API ───────────────────────────────────────────────
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const fetchCourses = useCallback(() => {
     setLoading(true);
     setError(null);
     fetch(`${API}/api/v1/analytics/gap-analysis`)
@@ -1438,6 +1540,10 @@ function StudentInner() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   // ── Scroll listener ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1523,6 +1629,41 @@ function StudentInner() {
           from { opacity:0; } to { opacity:1; }
         }
         * { box-sizing: border-box; }
+
+        @media print {
+          /* Hide all screen elements */
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Hide active modal card itself */
+          .upgrade-modal-card {
+            display: none !important;
+          }
+
+          /* Reset overlay style to print nicely */
+          .upgrade-modal-overlay {
+            position: static !important;
+            background: white !important;
+            backdrop-filter: none !important;
+            padding: 0 !important;
+            display: block !important;
+          }
+
+          /* Force printable guide block visible */
+          .printable-student-guide {
+            display: block !important;
+            width: 100% !important;
+            background: white !important;
+            color: #0f172a !important;
+          }
+
+          body {
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
       `}</style>
 
       {/* ── Modals ───────────────────────────────────────────────────────────── */}
@@ -1542,7 +1683,7 @@ function StudentInner() {
       )}
 
       {/* ── Sticky Header ────────────────────────────────────────────────────── */}
-      <header style={{
+      <header className="no-print" style={{
         position: "sticky", top: 0, zIndex: 100,
         background: scrolled ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.98)",
         backdropFilter: "blur(16px)",
@@ -1610,7 +1751,7 @@ function StudentInner() {
       </header>
 
       {/* ── Hero Section ─────────────────────────────────────────────────────── */}
-      <section style={{
+      <section className="no-print" style={{
         background: C.heroGrad, padding: "56px 32px 48px",
         color: "white", position: "relative", overflow: "hidden",
       }}>
@@ -1709,7 +1850,7 @@ function StudentInner() {
       </section>
 
       {/* ── Main Content ──────────────────────────────────────────────────────── */}
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 32px 80px" }}>
+      <main className="no-print" style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 32px 80px" }}>
 
         {/* ── Student Profile Panel ───────────────────────────────────────────── */}
         {profile.onboardingDone && (
@@ -1842,15 +1983,24 @@ function StudentInner() {
           <div style={{
             background: C.redLight, borderRadius: 14, padding: "18px 22px",
             border: `1px solid ${C.red}25`, marginBottom: 24,
-            display: "flex", alignItems: "flex-start", gap: 12,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
           }}>
-            <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
-            <div>
-              <div style={{ fontWeight: 700, color: C.red, fontSize: 14, marginBottom: 4 }}>
-                Backend Not Reachable
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight: 700, color: C.red, fontSize: 14, marginBottom: 4 }}>
+                  Backend Not Reachable
+                </div>
+                <div style={{ fontSize: 12, color: C.textSub, fontFamily: "monospace" }}>{error}</div>
               </div>
-              <div style={{ fontSize: 12, color: C.textSub, fontFamily: "monospace" }}>{error}</div>
             </div>
+            <button onClick={fetchCourses} style={{
+              background: C.red, color: "white", border: "none", borderRadius: 8,
+              padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              transition: "opacity 0.2s"
+            }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+              Retry Connection
+            </button>
           </div>
         )}
 
@@ -2077,7 +2227,7 @@ function StudentInner() {
       </main>
 
       {/* ── Floating Chat Assistant ────────────────────────────────────────────── */}
-      <ChatAssistant district={selectedDistrict} />
+      <div className="no-print"><ChatAssistant district={selectedDistrict} /></div>
     </div>
   );
 }
