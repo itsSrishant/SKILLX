@@ -332,7 +332,7 @@ export default function BridgePackPage() {
             🖨 Print / Download PDF
           </button>
           <a
-            href={`https://dvet.gov.in/registration/${data?.course_id || ""}`}
+            href={`https://admission.dvet.gov.in/courses/${String(data?.course_id || "").toLowerCase()}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{

@@ -5,6 +5,7 @@ import { LangProvider, useLang } from "@/lib/i18n";
 import { FREE_COURSES, type FreeCourse, getFreeCoursesByDistrict, PLATFORM_COLORS } from "./data/free-courses";
 import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
 import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 // ── API base (auto-detect localhost vs production) ────────────────────────────
 const API =
@@ -1132,6 +1133,7 @@ function ChatAssistant({ district }: { district: string }) {
     { sender: "bot", text: "Namaste! 🙏 I am the SkillX Career Assistant. Ask me about ITI trades, salary expectations in MIDC clusters, or how 20-hour Bridge Packs work!" }
   ]);
   const [input, setInput] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(false);
@@ -1194,7 +1196,9 @@ function ChatAssistant({ district }: { district: string }) {
   return (
     <div style={{
       position: "fixed", bottom: 24, right: 24, zIndex: 999,
-      width: 340, borderRadius: 20, overflow: "hidden",
+      width: isExpanded ? "90vw" : 340, 
+      height: isExpanded ? "85vh" : "auto",
+      borderRadius: 20, overflow: "hidden",
       boxShadow: "0 16px 48px rgba(0,0,0,0.18)",
       border: `1px solid ${C.border}`, background: C.card,
       display: "flex", flexDirection: "column",
@@ -1211,13 +1215,20 @@ function ChatAssistant({ district }: { district: string }) {
             <div style={{ fontSize: 10, opacity: 0.8 }}>ITI & MSSDS Trade Advisor</div>
           </div>
         </div>
-        <button onClick={() => setOpen(false)} style={{
-          background: "none", border: "none", color: "white", fontSize: 22, cursor: "pointer",
-        }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setIsExpanded(!isExpanded)} style={{
+            background: "none", border: "none", color: "white", cursor: "pointer", display: "flex", padding: 4
+          }}>
+            {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button onClick={() => setOpen(false)} style={{
+            background: "none", border: "none", color: "white", fontSize: 22, cursor: "pointer", padding: 4, lineHeight: 1
+          }}>×</button>
+        </div>
       </div>
       {/* Messages */}
       <div ref={bodyRef} style={{
-        height: 280, padding: 14, overflowY: "auto",
+        flex: 1, height: isExpanded ? "100%" : 280, padding: 14, overflowY: "auto",
         display: "flex", flexDirection: "column", gap: 10, background: C.bg,
       }}>
         {messages.map((m, i) => (

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { X, Send, Bot, Sparkles } from "lucide-react";
+import { X, Send, Bot, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type Message = {
@@ -22,6 +22,7 @@ export function CourseAssistantModal({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Generate deterministic Indian name based on course title
@@ -98,7 +99,7 @@ export function CourseAssistantModal({
       top: 0,
       right: 0,
       bottom: 0,
-      width: 400,
+      width: isExpanded ? "70vw" : 400,
       background: "#ffffff",
       boxShadow: "-10px 0 40px rgba(0,0,0,0.1)",
       zIndex: 9999,
@@ -142,21 +143,38 @@ export function CourseAssistantModal({
             </div>
           </div>
         </div>
-        <button onClick={onClose} style={{
-          background: "rgba(255,255,255,0.2)",
-          border: "none",
-          width: 32,
-          height: 32,
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          cursor: "pointer",
-          transition: "all 0.2s"
-        }} onMouseEnter={(e) => e.currentTarget.style.background="rgba(255,255,255,0.3)"} onMouseLeave={(e) => e.currentTarget.style.background="rgba(255,255,255,0.2)"}>
-          <X size={18} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setIsExpanded(!isExpanded)} style={{
+            background: "rgba(255,255,255,0.2)",
+            border: "none",
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          }}>
+            {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.2)",
+            border: "none",
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            cursor: "pointer",
+            transition: "all 0.2s"
+          }} onMouseEnter={(e) => e.currentTarget.style.background="rgba(255,255,255,0.3)"} onMouseLeave={(e) => e.currentTarget.style.background="rgba(255,255,255,0.2)"}>
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Chat Area */}

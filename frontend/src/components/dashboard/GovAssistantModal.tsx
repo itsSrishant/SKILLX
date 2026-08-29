@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, Send, X, Sparkles, Building2, ShieldCheck, RefreshCw } from "lucide-react";
+import { Bot, Send, X, Sparkles, Building2, ShieldCheck, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 
 export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: string }) {
   const [open, setOpen] = useState(false);
@@ -12,6 +12,7 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const district = selectedDistrict || "All Districts";
@@ -102,8 +103,8 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
         bottom: 24,
         right: 24,
         zIndex: 1000,
-        width: 420,
-        height: 560,
+        width: isExpanded ? "90vw" : 420,
+        height: isExpanded ? "85vh" : 560,
         borderRadius: 24,
         overflow: "hidden",
         boxShadow: "0 24px 64px rgba(0,0,0,0.22)",
@@ -146,18 +147,33 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setOpen(false)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#94a3b8",
-            cursor: "pointer",
-            padding: 4
-          }}
-        >
-          <X size={20} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              cursor: "pointer",
+              padding: 4,
+              display: "flex"
+            }}
+          >
+            {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button
+            onClick={() => setOpen(false)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              cursor: "pointer",
+              padding: 4
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Quick Prompts Ribbon */}

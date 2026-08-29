@@ -289,10 +289,7 @@ REAL MAHARASHTRA GOVERNMENT METRICS (SKILLX DB):
         "reply": fallback_reply
     }
 
-class CourseChatRequest(BaseModel):
-    message: constr(strip_whitespace=True, max_length=1000)
-    course_title: constr(max_length=200)
-    district: constr(max_length=50)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 3. Course-Specific AI Assistant Endpoint
