@@ -106,6 +106,7 @@ interface BridgePackData {
   sha256_hash?: string;
   nearest_industrial_hub?: string;
   setup_days?: string;
+  future_skills_analysis?: { skill: string; confidence: string; reasoning: string; }[];
 }
 
 // ── Goal Circle Loader (Smooth Progress Transition) ────────────────────────────
@@ -332,7 +333,7 @@ export default function BridgePackPage() {
             🖨 Print / Download PDF
           </button>
           <a
-            href={`https://admission.dvet.gov.in/courses/${String(data?.course_id || "").toLowerCase()}`}
+            href="https://admission.dvet.gov.in/"
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -497,6 +498,37 @@ export default function BridgePackPage() {
               </div>
             </div>
           </div>
+
+          {/* FUTURE SKILLS FORECAST SECTION */}
+          {data?.future_skills_analysis && data.future_skills_analysis.length > 0 && (
+            <div style={{ background: "white", borderRadius: 18, padding: "24px 28px", border: `1px solid ${C.border}`, marginBottom: 24 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🔮</span>
+                Future Skills Forecast (12-24 Months)
+              </div>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {data.future_skills_analysis.map((item, idx) => (
+                  <div key={idx} style={{ background: C.bg, padding: 18, borderRadius: 12, border: `1px solid ${C.border}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: C.sky }}>{item.skill}</div>
+                      <div style={{ 
+                        fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 999, 
+                        background: item.confidence === "High" ? C.greenLight : C.orangeLight, 
+                        color: item.confidence === "High" ? C.green : C.orange,
+                        border: `1px solid ${item.confidence === "High" ? 'rgba(34,197,94,0.2)' : 'rgba(249,115,22,0.2)'}`
+                      }}>
+                        {item.confidence} Confidence
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>
+                      {item.reasoning}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* EXPLICIT DYNAMIC FACT-BASED POLICY RATIONALE */}
           <div style={{

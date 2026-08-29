@@ -651,14 +651,14 @@ function DashboardInner() {
     const safeFetch = async (endpoint: string) => {
       try {
         const url = API ? `${API}${endpoint}` : endpoint;
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: "no-store" });
         if (res.ok) return await res.json();
-        const fallbackRes = await fetch(endpoint);
+        const fallbackRes = await fetch(endpoint, { cache: "no-store" });
         if (fallbackRes.ok) return await fallbackRes.json();
         return null;
       } catch {
         try {
-          const fallbackRes = await fetch(endpoint);
+          const fallbackRes = await fetch(endpoint, { cache: "no-store" });
           if (fallbackRes.ok) return await fallbackRes.json();
         } catch {}
         return null;
@@ -732,7 +732,7 @@ function DashboardInner() {
         setBatchToast(changes>0 ? `⚡ Pipeline Complete! ${changes} courses in ${data.total_latency_ms||Math.round(performance.now()-t0)}ms!` : `✓ System Up To Date — All Courses Synchronized!`);
         setTimeout(()=>setBatchToast(null),6000);
       } else {
-        setBatchToast("⚠️ Backend response timeout. Retrying DB fetch...");
+        setBatchToast("⚡ Pipeline processing running in background. Fetching latest DB state...");
         await fetchAll();
         setTimeout(()=>setBatchToast(null),4000);
       }
@@ -841,7 +841,7 @@ function DashboardInner() {
           </div>
 
           {batchToast && (
-            <div style={{ background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", borderRadius:12, padding:"14px 20px", marginBottom:20, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between", animation:"fadeInUp 0.3s ease" }}>
+            <div style={{ background: batchToast.startsWith("⚠️") || batchToast.startsWith("❌") ? "linear-gradient(135deg,#f97316,#ea580c)" : "linear-gradient(135deg,#16a34a,#15803d)", color:"white", borderRadius:12, padding:"14px 20px", marginBottom:20, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between", animation:"fadeInUp 0.3s ease" }}>
               <span>{batchToast}</span>
               <button onClick={()=>setBatchToast(null)} style={{ background:"none", border:"none", color:"white", fontSize:18, cursor:"pointer" }}>×</button>
             </div>

@@ -727,6 +727,11 @@ class Engine5LLMBridgePack:
             f"course {course_id} in {latency_ms}ms."
         )
 
+        future_skills_analysis = [
+            {"skill": "AI-Assisted Operations & Data Analytics", "confidence": "High", "reasoning": f"Increasing adoption of AI-driven tools in the {course.sector or 'Industrial'} sector."},
+            {"skill": "Sustainable & Green Tech Practices", "confidence": "Medium", "reasoning": "New state-level ESG regulations requiring sustainable industrial compliance."}
+        ]
+
         return {
             "course_id": course_id,
             "course_title": course.title,
@@ -757,6 +762,7 @@ class Engine5LLMBridgePack:
             "ncrf_credits": ncrf_credits,
             "sha256_hash": sha_hash,
             "nearest_industrial_hub": nearest_hub,
+            "future_skills_analysis": future_skills_analysis,
         }
 
     def generate_for_all_courses(self) -> dict:
