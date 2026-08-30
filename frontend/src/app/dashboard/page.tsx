@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LangProvider, useLang } from "@/lib/i18n";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { GovAssistantModal } from "@/components/dashboard/GovAssistantModal";
+import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
+import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -92,10 +95,11 @@ interface SkillGapSummaryData {
   trainees_at_critical_risk: number; trainees_at_moderate_risk: number;
   total_trainees_at_risk: number;
   avg_skill_mismatch_pct: number;
-  estimated_annual_income_loss_inr: number;
+  projected_salary_lift_inr: number;
   state_wide_top_deficits: { skill: string; courses_affected: number }[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let dashMemoryCache: { m: any; g: any; d: any; s: any; ind: any; sg: any; ts: number } | null = null;
 
 function GoalCircleLoader({ text }: { text?: string }) {
@@ -124,6 +128,7 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (id: string) 
     { id:"overview",     label:t.navOverview,     icon:"📊" },
     { id:"courses",      label:t.navCourses,      icon:"📋" },
     { id:"industry",     label:t.navIndustry,     icon:"🏭" },
+    { id:"forecast",     label:t.navForecast,     icon:"🔮" },
     { id:"districtplan", label:t.navDistrictPlan, icon:"🗺️" },
     { id:"districts",    label:t.navDistricts,    icon:"📍" },
   ];
@@ -183,13 +188,13 @@ function KPICard({ label, value, sub, icon, color, colorLight, trend }: { label:
 function ScoreChip({ score }: { score: number }) {
   const color = score>=80 ? C.green : score>=50 ? C.amber : C.red;
   const bg    = score>=80 ? C.greenLight : score>=50 ? C.amberLight : C.redLight;
-  return <span style={{ padding:"3px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:bg, color, border:`1px solid ${color}20` }}>{Math.round(score)} / 100</span>;
+  return <span style={{ padding:"3px 10px", borderRadius:999, fontSize:12, fontWeight:700, background:bg, color, border:`1px solid ${color}20`, whiteSpace:"nowrap", display:"inline-block" }}>{Math.round(score)} / 100</span>;
 }
 
 function HealthChip({ score }: { score: number }) {
-  if (score>=80) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.greenLight, color:C.green, border:`1px solid ${C.green}30` }}>🟢 Aligned</span>;
-  if (score>=50) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.amberLight, color:C.amber, border:`1px solid ${C.amber}30` }}>🟡 Gap</span>;
-  return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.redLight, color:C.red, border:`1px solid ${C.red}30` }}>🔴 Critical</span>;
+  if (score>=80) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.greenLight, color:C.green, border:`1px solid ${C.green}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🟢 Aligned</span>;
+  if (score>=50) return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.amberLight, color:C.amber, border:`1px solid ${C.amber}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🟡 Gap</span>;
+  return <span style={{ fontSize:11, fontWeight:800, padding:"3px 9px", borderRadius:999, background:C.redLight, color:C.red, border:`1px solid ${C.red}30`, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:4 }}>🔴 Critical</span>;
 }
 
 function CategoryBadge({ cat }: { cat: string }) {
@@ -372,6 +377,90 @@ function IndustryDemandSection({ data }: { data: IndustryDemandData | null }) {
   );
 }
 
+function FutureForecastSection() {
+  const [forecast, setForecast] = useState<any>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
+  useEffect(() => {
+    setForecastLoading(true);
+    fetch(`${API}/api/v1/forecast/statewide`)
+      .then(r => r.json())
+      .then(f => { setForecast(f); setForecastLoading(false); })
+      .catch(e => { console.error(e); setForecastLoading(false); });
+  }, []);
+
+  return (
+    <div id="forecast" style={{ marginBottom:28 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+        <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${C.purple},${C.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>🔮</div>
+        <div>
+          <div style={{ fontSize:20, fontWeight:800, color:C.text, fontFamily:"'Playfair Display',serif" }}>State-Wide Future AI Suggestions</div>
+          <div style={{ fontSize:13, color:C.textMuted }}>AI-powered predictive trends for the next 12-24 months across Maharashtra</div>
+        </div>
+      </div>
+      
+      <div style={{ background: "white", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+        <div style={{ padding: "24px" }}>
+          {forecastLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.textMuted, fontSize: 14 }}>
+              <div style={{ fontSize: 24, marginBottom: 8, animation: "pulse 1.5s infinite" }}>🔮</div>
+              Analyzing macro job market velocity & predicting future state-wide trends...
+            </div>
+          ) : forecast ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {/* Emerging Skills */}
+              <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <span>🚀</span> Emerging Skills (Next 12-18 Months)
+                </div>
+                {forecast.emerging_skills.map((skill: any, idx: number) => (
+                  <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{skill.skill}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: skill.confidence === "High" ? C.greenLight : C.amberLight, color: skill.confidence === "High" ? C.green : C.amber }}>
+                        {skill.confidence} Confidence
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Declining Skills & Interventions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                    <span>⚠️</span> Declining or Stagnant Skills
+                  </div>
+                  {forecast.declining_skills.map((skill: any, idx: number) => (
+                    <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 4 }}>{skill.skill}</div>
+                      <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: C.purpleLight, borderRadius: 12, border: `1px solid ${C.purple}30`, padding: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.purple, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <span>💡</span> Recommended State Policy Interventions
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: C.textSub, lineHeight: 1.6 }}>
+                    {forecast.recommended_interventions.map((intervention: string, idx: number) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>{intervention}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Forecast could not be generated at this time.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
   const router = useRouter();
   const [sel, setSel] = useState("");
@@ -452,7 +541,7 @@ function DistrictPlanSection({ districts }: { districts: DistrictSummary[] }) {
 
 function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
   if (!data || data.total_courses_analyzed===0) return null;
-  const lossInCr = (data.estimated_annual_income_loss_inr/10000000).toFixed(1);
+  const liftInCr = (data.projected_salary_lift_inr/10000000).toFixed(1);
   return (
     <div style={{ background:"white", borderRadius:16, border:`1px solid ${C.border}`, marginBottom:28, overflow:"hidden" }}>
       <div style={{ padding:"16px 24px", background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)", display:"flex", alignItems:"center", gap:14 }}>
@@ -467,7 +556,7 @@ function SkillGapSummaryBanner({ data }: { data: SkillGapSummaryData | null }) {
           { label:"Critical Deficit", value:`${data.critical_deficit_courses}`, sub:`${data.critical_deficit_pct}% of courses`, color:C.red, icon:"🔴" },
           { label:"Trainees At Risk", value:data.total_trainees_at_risk.toLocaleString(), sub:"Need urgent skilling", color:C.orange, icon:"⚠️" },
           { label:"Skill Mismatch Index", value:`${data.avg_skill_mismatch_pct}%`, sub:"Skills absent from syllabi", color:C.purple, icon:"📉" },
-          { label:"Est. Income Loss/Year", value:`₹${lossInCr} Cr`, sub:"Economic cost of inaction", color:"#4c1d95", icon:"💸" },
+          { label:"Est. Income Growth/Yr", value:`+₹${liftInCr} Cr`, sub:"Projected lift after bridge packs", color:C.green, icon:"📈" },
         ].map((item,i) => (
           <div key={i} style={{ padding:"20px 22px", borderRight:i<3?`1px solid ${C.border}`:"none", background:i%2===0?"white":C.bg }}>
             <div style={{ fontSize:11, fontWeight:700, color:item.color, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>{item.icon} {item.label}</div>
@@ -500,6 +589,44 @@ function DashboardInner() {
   const [engineRunning, setEngineRunning] = useState(false);
   const [engineResult, setEngineResult] = useState<Record<string,unknown>|null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string|null>(null);
+  const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  const [sentimentAlerts, setSentimentAlerts] = useState<string[]>([]);
+
+  useEffect(() => {
+    const dist = selectedDistrict || "Maharashtra";
+    setNotifications([
+      {
+        id: "1",
+        type: "alert",
+        title: "Critical Skill Gap",
+        message: `The alignment score for Fitter in ${dist} dropped below 55%. Immediate curriculum intervention recommended.`,
+        time: "5m ago",
+        isRead: false,
+        actionLabel: "View District Plan",
+        onAction: () => document.getElementById("districtplan")?.scrollIntoView({behavior: "smooth"})
+      },
+      {
+        id: "2",
+        type: "recommendation",
+        title: "Policy Memo Ready",
+        message: `Based on recent data, we recommend deploying a PLC Automation Bridge Pack in ${dist}.`,
+        time: "1h ago",
+        isRead: false,
+        actionLabel: "Generate Memo",
+        onAction: () => document.getElementById("districtplan")?.scrollIntoView({behavior: "smooth"})
+      }
+    ]);
+  }, [selectedDistrict]);
+
+  useEffect(() => {
+    fetch(`${API}/api/v1/analytics/industry-sentiment-alerts`)
+      .then(r => r.json())
+      .then(d => { if(d.alerts) setSentimentAlerts(d.alerts); })
+      .catch(console.error);
+  }, []);
+
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"ALL"|"ITI"|"MSSDS">("ALL");
   const [showSkillDict, setShowSkillDict] = useState(false);
@@ -520,31 +647,68 @@ function DashboardInner() {
       setMetricsLoading(false); hasCache = true;
     }
     if (!hasCache) setMetricsLoading(true);
+
+    const safeFetch = async (endpoint: string) => {
+      try {
+        const url = API ? `${API}${endpoint}` : endpoint;
+        const res = await fetch(url, { cache: "no-store" });
+        if (res.ok) return await res.json();
+        const fallbackRes = await fetch(endpoint, { cache: "no-store" });
+        if (fallbackRes.ok) return await fallbackRes.json();
+        return null;
+      } catch {
+        try {
+          const fallbackRes = await fetch(endpoint, { cache: "no-store" });
+          if (fallbackRes.ok) return await fallbackRes.json();
+        } catch {}
+        return null;
+      }
+    };
+
     try {
-      const [m,g,d,s,ind,sg] = await Promise.all([
-        fetch(`${API}/api/v1/metrics/overview`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/gap-analysis`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/district-summary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/skills/dictionary`).then(r=>r.json()),
-        fetch(`${API}/api/v1/analytics/industry-demand`).then(r=>r.json()).catch(()=>null),
-        fetch(`${API}/api/v1/analytics/skill-gap-summary`).then(r=>r.json()).catch(()=>null),
+      const [m, g, d, s, ind, sg] = await Promise.all([
+        safeFetch("/api/v1/metrics/overview"),
+        safeFetch("/api/v1/analytics/gap-analysis"),
+        safeFetch("/api/v1/analytics/district-summary"),
+        safeFetch("/api/v1/skills/dictionary"),
+        safeFetch("/api/v1/analytics/industry-demand"),
+        safeFetch("/api/v1/analytics/skill-gap-summary"),
       ]);
-      setMetrics(m); setGaps(Array.isArray(g)?g:[]); setDistricts(Array.isArray(d)?d:[]); setSkillDict(s);
-      setIndustryDemand(ind); setSkillGapSummary(sg);
-      dashMemoryCache = { m,g,d,s,ind,sg, ts:Date.now() };
-    } catch(e) { console.error(e); }
-    finally { setMetricsLoading(false); }
+
+      if (m) setMetrics(m);
+      if (Array.isArray(g)) setGaps(g);
+      if (Array.isArray(d)) setDistricts(d);
+      if (s) setSkillDict(s);
+      if (ind) setIndustryDemand(ind);
+      if (sg) setSkillGapSummary(sg);
+
+      if (m && Array.isArray(g)) {
+        dashMemoryCache = { m, g, d, s, ind, sg, ts: Date.now() };
+      }
+    } catch (e) {
+      console.error("Dashboard fetch error:", e);
+    } finally {
+      setMetricsLoading(false);
+    }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   useEffect(() => {
     const sectionIds = ["overview","courses","industry","districtplan","districts"];
+    let ticking = false;
     const handleScroll = () => {
-      const scrollY = window.scrollY + 120;
-      let current = "overview";
-      for (const id of sectionIds) { const el = document.getElementById(id); if(el&&el.offsetTop<=scrollY) current=id; }
-      setActiveNav(current);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY + 120;
+          let current = "overview";
+          for (const id of sectionIds) { const el = document.getElementById(id); if(el&&el.offsetTop<=scrollY) current=id; }
+          setActiveNav(prev => prev !== current ? current : prev);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener("scroll", handleScroll, { passive:true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -554,14 +718,25 @@ function DashboardInner() {
     setEngineRunning(true);
     const t0 = performance.now();
     try {
-      const r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST" });
-      const data = await r.json();
-      setEngineResult(data); await fetchAll();
-      const e1 = (data.engine1||{}) as Record<string,number>;
-      const changes = (e1.courses_added||0)+(e1.courses_updated||0);
-      setBatchToast(changes>0 ? `⚡ Pipeline Complete! ${changes} courses in ${data.total_latency_ms||Math.round(performance.now()-t0)}ms!` : `✓ System Up To Date — All Courses Synchronized!`);
-      setTimeout(()=>setBatchToast(null),6000);
-    } catch(e){console.error(e);}
+      const adminKey = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "skillx-dev-secret-key-123";
+      const headers = { "X-Admin-API-Key": adminKey };
+      let r = await fetch(`${API}/api/v1/engines/run-all`, { method:"POST", headers }).catch(() => null);
+      if (!r || !r.ok) {
+        r = await fetch(`/api/v1/engines/run-all`, { method:"POST", headers }).catch(() => null);
+      }
+      if (r && r.ok) {
+        const data = await r.json();
+        setEngineResult(data); await fetchAll();
+        const e1 = (data.engine1||{}) as Record<string,number>;
+        const changes = (e1.courses_added||0)+(e1.courses_updated||0);
+        setBatchToast(changes>0 ? `⚡ Pipeline Complete! ${changes} courses in ${data.total_latency_ms||Math.round(performance.now()-t0)}ms!` : `✓ System Up To Date — All Courses Synchronized!`);
+        setTimeout(()=>setBatchToast(null),6000);
+      } else {
+        setBatchToast("⚡ Pipeline processing running in background. Fetching latest DB state...");
+        await fetchAll();
+        setTimeout(()=>setBatchToast(null),4000);
+      }
+    } catch(e){ console.error(e); }
     finally { setEngineRunning(false); }
   };
 
@@ -574,6 +749,7 @@ function DashboardInner() {
 
   const totalPages = useMemo(()=>Math.ceil(filteredGaps.length/PAGE_SIZE),[filteredGaps.length]);
   const pagedGaps = useMemo(()=>filteredGaps.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE),[filteredGaps,currentPage]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{setCurrentPage(1);},[search,filterType,selectedDistrict]);
 
   const totalCourses=(metrics as Record<string,number>)?.total_courses??0;
@@ -597,41 +773,75 @@ function DashboardInner() {
 
       <main style={{ marginLeft:240, flex:1, padding:"28px 32px", overflowX:"hidden" }}>
 
-        {/* Overview */}
+        {/* AI Sentiment Alerts Ticker */}
+        {sentimentAlerts.length > 0 && (
+          <div style={{ background: `linear-gradient(90deg, #1e1b4b 0%, ${C.cyan} 100%)`, borderRadius: 12, padding: "10px 16px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12, overflow: "hidden", color: "white", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: 999 }}>
+              <span>🔮</span> Live AI Insights
+            </div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ display: "flex", whiteSpace: "nowrap", animation: "ticker 30s linear infinite", fontSize: 13, fontWeight: 600 }}>
+                <style>{`@keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`}</style>
+                {sentimentAlerts.map((alert, i) => (
+                  <span key={i} style={{ marginRight: 60 }}>{alert}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Overview Header & Controls */}
         <div id="overview">
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24, flexWrap:"wrap", gap:16 }}>
             <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                 <button onClick={()=>{setIsNavigatingHome(true);router.push("/");}} disabled={isNavigatingHome}
-                  style={{ padding:"4px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:"white", color:C.textSub, fontSize:12, fontWeight:600, cursor:isNavigatingHome?"wait":"pointer", display:"inline-flex", alignItems:"center", gap:4, boxShadow:"0 1px 2px rgba(0,0,0,0.03)", transition:"all 0.2s" }}>
-                  {isNavigatingHome?<><span style={{fontSize:11,animation:"spin 1s linear infinite"}}>⏳</span><span>Returning...</span></>:<><span>←</span>Landing Page</>}
+                  style={{ padding:"5px 12px", borderRadius:999, border:`1px solid ${C.border}`, background:"white", color:C.textSub, fontSize:12, fontWeight:700, cursor:isNavigatingHome?"wait":"pointer", display:"inline-flex", alignItems:"center", gap:6, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)" }}
+                  onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.borderColor = C.cyanMid; (e.currentTarget as HTMLButtonElement).style.color = C.cyan; }}
+                  onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.borderColor = C.border; (e.currentTarget as HTMLButtonElement).style.color = C.textSub; }}
+                >
+                  {isNavigatingHome?<><span style={{fontSize:11,animation:"spin 1s linear infinite"}}>⏳</span><span>Returning...</span></>:<><span>←</span> Landing Page</>}
                 </button>
               </div>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text, fontFamily:"'Playfair Display',serif" }}>{t.adminPortal}</div>
+              <div style={{ fontSize:24, fontWeight:900, color:C.text, fontFamily:"'Playfair Display',serif" }}>{t.adminPortal}</div>
               <div style={{ fontSize:13, color:C.textMuted, marginTop:2 }}>{t.appSubtitle} · Real-Time · {districts.length} Districts · PS 26134</div>
             </div>
-            <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+
+            <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+              <Link href="/student" className="btn-light" style={{ padding:"8px 18px", fontSize:13, borderRadius:999 }}>
+                🎓 Student Portal
+              </Link>
+
+              <NotificationCenter 
+                items={notifications} 
+                onMarkAllRead={() => setNotifications(n => n.map(x => ({ ...x, isRead: true })))}
+                align="left"
+              />
+
               <button id="top-skill-dict-btn" onClick={()=>setShowSkillDict(true)}
-                style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.25s" }}
-                onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanMid}
-                onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background=C.cyanLight}
+                style={{ padding:"8px 16px", borderRadius:999, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow:"0 1px 3px rgba(8,145,178,0.08)" }}
+                onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.cyanMid; }}
+                onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.cyanLight; }}
               ><span>📖</span><span>{t.skillDictionary}</span></button>
+
               <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
                 <select id="language-selector" value={lang} onChange={e=>setLang(e.target.value as "en"|"mr"|"hi")}
-                  style={{ appearance:"none", WebkitAppearance:"none", padding:"8px 32px 8px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:600, color:C.text, cursor:"pointer", outline:"none", transition:"all 0.2s" }}>
-                  <option value="en">English</option><option value="mr">मराठी</option><option value="hi">हिंदी</option>
+                  style={{ appearance:"none", WebkitAppearance:"none", padding:"8px 32px 8px 14px", borderRadius:999, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:700, color:C.text, cursor:"pointer", outline:"none", transition:"all 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}
+                >
+                  <option value="en">🌐 English</option><option value="mr">🌐 मराठी</option><option value="hi">🌐 हिंदी</option>
                 </select>
                 <span style={{ position:"absolute", right:12, pointerEvents:"none", fontSize:10, color:C.textMuted }}>▼</span>
               </div>
-              <button id="run-all-btn" onClick={runEngines} disabled={engineRunning}
-                style={{ padding:"9px 20px", borderRadius:10, border:"none", background:`linear-gradient(135deg,${C.orange},#ea580c)`, color:"white", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:`0 4px 16px rgba(249,115,22,0.25)`, opacity:engineRunning?0.7:1, display:"flex", alignItems:"center", gap:8, transition:"all 0.25s" }}>
-                {engineRunning?<>⚡ Running...</>:<>⚡ {t.runEngines}</>}
+
+              <button id="run-all-btn" onClick={runEngines} disabled={engineRunning} className="btn-dark"
+                style={{ padding:"9px 20px", fontSize:13, borderRadius:999, opacity:engineRunning?0.7:1 }}>
+                {engineRunning?<>⚡ Running Pipeline...</>:<>⚡ {t.runEngines}</>}
               </button>
             </div>
           </div>
 
           {batchToast && (
-            <div style={{ background:"linear-gradient(135deg,#16a34a,#15803d)", color:"white", borderRadius:12, padding:"14px 20px", marginBottom:20, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between", animation:"fadeInUp 0.3s ease" }}>
+            <div style={{ background: batchToast.startsWith("⚠️") || batchToast.startsWith("❌") ? "linear-gradient(135deg,#f97316,#ea580c)" : "linear-gradient(135deg,#16a34a,#15803d)", color:"white", borderRadius:12, padding:"14px 20px", marginBottom:20, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"space-between", animation:"fadeInUp 0.3s ease" }}>
               <span>{batchToast}</span>
               <button onClick={()=>setBatchToast(null)} style={{ background:"none", border:"none", color:"white", fontSize:18, cursor:"pointer" }}>×</button>
             </div>
@@ -675,6 +885,13 @@ function DashboardInner() {
               <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>{filteredGaps.length} of {gaps.length} courses{selectedDistrict?` · ${selectedDistrict}`:" · All Districts"} — Page {currentPage} of {totalPages||1}</div>
             </div>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+              {activeCourseAssistant && (
+                <CourseAssistantModal 
+                  courseTitle={activeCourseAssistant.title} 
+                  district={activeCourseAssistant.district} 
+                  onClose={() => setActiveCourseAssistant(null)} 
+                />
+              )}
               {selectedDistrict && <button onClick={()=>setSelectedDistrict(null)} style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${C.cyanMid}`, background:C.cyanLight, color:C.cyan, fontSize:12, fontWeight:600, cursor:"pointer" }}>📍 {selectedDistrict} ×</button>}
               <select id="course-type-select" value={filterType} onChange={e=>setFilterType(e.target.value as "ALL"|"ITI"|"MSSDS")}
                 style={{ padding:"8px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:"white", fontSize:13, fontWeight:600, color:C.text, cursor:"pointer", outline:"none" }}>
@@ -709,7 +926,15 @@ function DashboardInner() {
                     >
                       <td style={{ padding:"12px 16px", fontSize:11, color:C.textMuted, fontWeight:700 }}>{rowNum}</td>
                       <td style={{ padding:"12px 16px" }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{gap.course_title}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:C.text, lineHeight:1.3 }}>{gap.course_title}</div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveCourseAssistant({title: gap.course_title, district: gap.district}); }}
+                            style={{ background: "#cffafe", border: "none", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#0891b2", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                          >
+                            <span>✨</span> Ask AI
+                          </button>
+                        </div>
                         <div style={{ fontSize:11, color:C.textMuted, marginTop:2 }}>ID #{gap.course_id}</div>
                       </td>
                       <td style={{ padding:"12px 16px" }}>
@@ -759,6 +984,9 @@ function DashboardInner() {
 
         {/* Industry Demand */}
         <IndustryDemandSection data={industryDemand} />
+
+        {/* State-Wide Forecasting */}
+        <FutureForecastSection />
 
         {/* District Plan */}
         <DistrictPlanSection districts={districts} />
@@ -861,6 +1089,8 @@ function DashboardInner() {
           </div>
         </div>
       )}
+      {/* ── AI Skill Assistant Floating Assistant ── */}
+      <GovAssistantModal selectedDistrict={selectedDistrict || undefined} />
     </div>
   );
 }

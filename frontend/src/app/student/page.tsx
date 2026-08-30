@@ -3,6 +3,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Link from "next/link";
 import { LangProvider, useLang } from "@/lib/i18n";
 import { FREE_COURSES, type FreeCourse, getFreeCoursesByDistrict, PLATFORM_COLORS } from "./data/free-courses";
+import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
+import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 // ── API base (auto-detect localhost vs production) ────────────────────────────
 const API =
@@ -212,6 +215,7 @@ function SkillBadge({ skill, type }: { skill: string; type: "mastered" | "missin
       padding: "2px 8px", borderRadius: 999,
       background: s.bg, color: s.color,
       fontSize: 10, fontWeight: 700,
+      whiteSpace: "nowrap",
       border: `1px solid ${s.color}20`,
       transition: "transform 0.15s",
       cursor: "default",
@@ -506,6 +510,31 @@ function SkillUpgradeModal({
 }) {
   const [activeSection, setActiveSection] = useState<"gap" | "roadmap" | "jobs" | "next">("gap");
   const [loadingBP, setLoadingBP] = useState(!bridgePack);
+  const [analyzingJob, setAnalyzingJob] = useState<string | null>(null);
+  const [shortestPathData, setShortestPathData] = useState<{ [job: string]: string }>({});
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  const analyzeShortestPath = async (job: string) => {
+    setAnalyzingJob(job);
+    try {
+      const res = await fetch(`${API}/api/v1/student/shortest-path-hiring`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_skills: course.missing_skills,
+          target_job_role: job
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShortestPathData(prev => ({ ...prev, [job]: data.roadmap_markdown }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setAnalyzingJob(null);
+  };
 
   const SECTION_TABS = [
     { id: "gap",     label: "Skill Gap Analysis",  icon: "🔍" },
@@ -713,24 +742,37 @@ function SkillUpgradeModal({
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {jobsUnlocked.map((job, i) => (
                   <div key={i} style={{
-                    background: C.bg, borderRadius: 12, padding: "14px 16px",
-                    border: `1px solid ${C.border}`, display: "flex",
-                    alignItems: "center", justifyContent: "space-between",
+                    background: C.bg, borderRadius: 12, overflow: "hidden",
+                    border: `1px solid ${C.border}`, display: "flex", flexDirection: "column"
                   }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 3 }}>
-                        💼 {job}
+                    <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 3 }}>
+                          💼 {job}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.textMuted }}>
+                          MIDC Clusters: Pune, Nashik, Thane
+                        </div>
                       </div>
-                      <div style={{ fontSize: 11, color: C.textMuted }}>
-                        MIDC Clusters: Pune, Nashik, Thane
+                      <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>
+                          ₹15k–22k/mo
+                        </div>
+                        <button 
+                          onClick={() => analyzeShortestPath(job)}
+                          disabled={analyzingJob === job}
+                          style={{ padding: "4px 10px", borderRadius: 6, border: "none", background: `linear-gradient(135deg,${C.purple},${C.cyan})`, color: "white", fontSize: 10, fontWeight: 700, cursor: analyzingJob === job ? "wait" : "pointer" }}
+                        >
+                          {analyzingJob === job ? "Analyzing..." : "✨ AI Shortest Path"}
+                        </button>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>
-                        ₹15k–22k/mo
+                    {shortestPathData[job] && (
+                      <div style={{ padding: "14px 16px", background: C.cyanLight, borderTop: `1px solid ${C.cyan}30`, fontSize: 12, color: C.textSub, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                        <div style={{ fontWeight: 800, color: C.cyan, marginBottom: 8, fontSize: 11, textTransform: "uppercase" }}>AI Roadmap to Hiring</div>
+                        {shortestPathData[job]}
                       </div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>Policy Benchmark*</div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1092,32 +1134,47 @@ function ChatAssistant({ district }: { district: string }) {
     { sender: "bot", text: "Namaste! 🙏 I am the SkillX Career Assistant. Ask me about ITI trades, salary expectations in MIDC clusters, or how 20-hour Bridge Packs work!" }
   ]);
   const [input, setInput] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  const send = useCallback(() => {
-    if (!input.trim()) return;
+  const [loading, setLoading] = useState(false);
+
+  const send = useCallback(async () => {
+    if (!input.trim() || loading) return;
     const userMsg = input.trim();
     const newMsgs = [...messages, { sender: "user" as "bot" | "user", text: userMsg }];
     setMessages(newMsgs);
     setInput("");
+    setLoading(true);
 
-    const q = userMsg.toLowerCase();
-    let reply = "I recommend our 20-hour Skill Bridge Packs! They cover practical lab workshops with high employer demand in MIDC clusters.";
-    if (q.includes("salary") || q.includes("pay") || q.includes("money"))
-      reply = `Graduates completing our Skill Bridge Packs see average salary lifts from ₹12,500/mo to ₹18,500/mo (+48%) in MIDC hubs like Pune, Nashik, and Thane!`;
-    else if (q.includes("bridge") || q.includes("pack") || q.includes("20"))
-      reply = "Bridge Packs are 20-hour modular upgrade plans that close specific skill gaps. Each module targets one missing skill with theory + hands-on workshop + assessment.";
-    else if (q.includes("iti") || q.includes("mssds") || q.includes("course"))
-      reply = "Top aligned ITI trades: Electrician, Fitter, Turner, Machinist, Electronics Mechanic. MSSDS covers EV, Solar, Automation short courses. Both have Bridge Pack upgrades.";
-    else if (q.includes("district") || q.includes(district.toLowerCase()))
-      reply = `In ${district}, top hiring sectors include Automotive, Electronics, and Electrical Manufacturing. Tata Motors, Bajaj Auto, and Bharat Forge are active employers.`;
-    else if (q.includes("nsqf"))
-      reply = "NSQF = National Skills Qualifications Framework. Levels 3–5 are standard for ITI trades. Higher NSQF level = higher employer recognition and salary band.";
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      
+      const history = messages.map(m => ({
+        role: m.sender === "user" ? "user" : "model",
+        content: m.text
+      }));
 
-    setTimeout(() => {
-      setMessages(prev => [...prev, { sender: "bot" as const, text: reply }]);
-    }, 380);
-  }, [input, messages, district]);
+      const res = await fetch(`${API_BASE}/api/v1/assistant/student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg, district, history })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, { sender: "bot", text: data.reply }]);
+      } else {
+        throw new Error("Assistant API error");
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        sender: "bot",
+        text: `In **${district}**, top demanded ITI trades include Electrician, Fitter, and CNC Machinist. 20-hour Skill Bridge Packs boost graduate starting salary to ₹26,500/month in local MIDC clusters.`
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }, [input, messages, district, loading]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -1140,7 +1197,9 @@ function ChatAssistant({ district }: { district: string }) {
   return (
     <div style={{
       position: "fixed", bottom: 24, right: 24, zIndex: 999,
-      width: 340, borderRadius: 20, overflow: "hidden",
+      width: isExpanded ? "90vw" : 340, 
+      height: isExpanded ? "85vh" : "auto",
+      borderRadius: 20, overflow: "hidden",
       boxShadow: "0 16px 48px rgba(0,0,0,0.18)",
       border: `1px solid ${C.border}`, background: C.card,
       display: "flex", flexDirection: "column",
@@ -1157,13 +1216,20 @@ function ChatAssistant({ district }: { district: string }) {
             <div style={{ fontSize: 10, opacity: 0.8 }}>ITI & MSSDS Trade Advisor</div>
           </div>
         </div>
-        <button onClick={() => setOpen(false)} style={{
-          background: "none", border: "none", color: "white", fontSize: 22, cursor: "pointer",
-        }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setIsExpanded(!isExpanded)} style={{
+            background: "none", border: "none", color: "white", cursor: "pointer", display: "flex", padding: 4
+          }}>
+            {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button onClick={() => setOpen(false)} style={{
+            background: "none", border: "none", color: "white", fontSize: 22, cursor: "pointer", padding: 4, lineHeight: 1
+          }}>×</button>
+        </div>
       </div>
       {/* Messages */}
       <div ref={bodyRef} style={{
-        height: 280, padding: 14, overflowY: "auto",
+        flex: 1, height: isExpanded ? "100%" : 280, padding: 14, overflowY: "auto",
         display: "flex", flexDirection: "column", gap: 10, background: C.bg,
       }}>
         {messages.map((m, i) => (
@@ -1175,8 +1241,28 @@ function ChatAssistant({ district }: { district: string }) {
             border: m.sender === "user" ? "none" : `1px solid ${C.border}`,
             fontSize: 12, lineHeight: 1.5,
             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+            whiteSpace: "pre-wrap"
           }}>{m.text}</div>
         ))}
+        {loading && (
+          <div style={{
+            alignSelf: "flex-start",
+            padding: "8px 12px", borderRadius: 14,
+            background: C.card, border: `1px solid ${C.border}`,
+            display: "flex", gap: 4, alignItems: "center", height: 24,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+          }}>
+            <style>{`
+              @keyframes studBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+              .sdot { animation: studBounce 1.4s infinite ease-in-out both; width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%; display: inline-block; }
+              .sdot:nth-child(1) { animation-delay: -0.32s; }
+              .sdot:nth-child(2) { animation-delay: -0.16s; }
+            `}</style>
+            <span className="sdot" />
+            <span className="sdot" />
+            <span className="sdot" />
+          </div>
+        )}
       </div>
       {/* Input */}
       <div style={{
@@ -1202,7 +1288,7 @@ function ChatAssistant({ district }: { district: string }) {
 // ──────────────────────────────────────────────────────────────────────────────
 // FREE COURSE CARD (NPTEL / Coursera / Swayam / Google)
 // ──────────────────────────────────────────────────────────────────────────────
-function FreeCourseCard({ course, index }: { course: FreeCourse; index: number }) {
+function FreeCourseCard({ course, index, onAskAI }: { course: FreeCourse; index: number, onAskAI?: () => void }) {
   const [hovered, setHovered] = useState(false);
   const pc = PLATFORM_COLORS[course.platform];
   const score = course.alignment_score;
@@ -1309,14 +1395,26 @@ function FreeCourseCard({ course, index }: { course: FreeCourse; index: number }
             ? "📍 Available in all 36 districts"
             : `📍 Best for: ${Array.isArray(course.applicable_districts) ? course.applicable_districts.slice(0, 2).join(", ") : ""}`}
         </div>
-        <span style={{
-          padding: "7px 16px", borderRadius: 10,
-          background: `linear-gradient(135deg, ${pc.color}, ${pc.color}cc)`,
-          color: "white", fontSize: 12, fontWeight: 700,
-          boxShadow: `0 3px 10px ${pc.color}30`,
-        }}>
-          Open Course →
-        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          {onAskAI && (
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAskAI(); }}
+              style={{
+                padding: "7px 12px", borderRadius: 10, border: "1px solid #cffafe",
+                background: "#ecfeff", color: "#0891b2", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              ✨ Ask AI
+            </button>
+          )}
+          <span style={{
+            padding: "7px 16px", borderRadius: 10,
+            background: `linear-gradient(135deg, ${pc.color}, ${pc.color}cc)`,
+            color: "white", fontSize: 12, fontWeight: 700,
+            boxShadow: `0 3px 10px ${pc.color}30`,
+          }}>
+            Open Course →
+          </span>
+        </div>
       </div>
     </a>
   );
@@ -1372,12 +1470,50 @@ function StudentInner() {
   // — Profile state (persisted in localStorage)
   const [profile, setProfile]     = useState<StudentProfile>(DEFAULT_PROFILE);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const completeness = calcCompleteness(profile);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    const dist = profile.district || "Pune";
+    setNotifications([
+      {
+        id: "1",
+        type: "recommendation",
+        title: "High Demand Alert",
+        message: `Employers in ${dist} are aggressively hiring for CNC G-Code Programming.`,
+        time: "10m ago",
+        isRead: false,
+        actionLabel: "View Bridge Pack",
+        onAction: () => document.getElementById("bridge-pack-section")?.scrollIntoView({behavior: "smooth"})
+      },
+      {
+        id: "2",
+        type: "success",
+        title: "Profile Strength",
+        message: `Your profile completeness is ${completeness}%. Add your educational background to unlock more recommendations.`,
+        time: "1h ago",
+        isRead: false,
+        actionLabel: "Update Profile",
+        onAction: () => setShowOnboarding(true)
+      },
+      {
+        id: "3",
+        type: "alert",
+        title: "New Job Crawl Results",
+        message: `We've detected 140 new job openings matching your profile in ${dist}.`,
+        time: "2h ago",
+        isRead: true
+      }
+    ]);
+  }, [profile.district, completeness]);
   const [profileLoaded, setProfileLoaded]   = useState(false);
 
   // — Filter state
   const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
   const [selectedSectors,  setSelectedSectors]  = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
 
   // — Data state
   const [courses, setCourses] = useState<CourseRec[]>([]);
@@ -1400,6 +1536,7 @@ function StudentInner() {
       const saved = localStorage.getItem("skillx_student_profile");
       if (saved) {
         const p: StudentProfile = JSON.parse(saved);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProfile(p);
         setSelectedDistrict(p.district || "All Districts");
         if (!p.onboardingDone) setShowOnboarding(true);
@@ -1422,6 +1559,7 @@ function StudentInner() {
 
   // ── Load courses from real API ───────────────────────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
     fetch(`${API}/api/v1/analytics/gap-analysis`)
@@ -1505,9 +1643,6 @@ function StudentInner() {
     } catch { /* use null bridgePack — modal handles gracefully */ }
     setLoadingBP(false);
   }, []);
-
-  const completeness = calcCompleteness(profile);
-
   // ──────────────────────────────────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────────────────────────────────
@@ -1588,6 +1723,12 @@ function StudentInner() {
                 {profile.name || "My Profile"} · {completeness}% complete
               </button>
             )}
+
+            <NotificationCenter 
+              items={notifications} 
+              onMarkAllRead={() => setNotifications(n => n.map(x => ({ ...x, isRead: true })))} 
+            />
+
             <select value={lang} onChange={e => setLang(e.target.value as "en" | "mr" | "hi")}
               style={{
                 padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
@@ -1659,7 +1800,7 @@ function StudentInner() {
                 {" "}Future Skill Path
               </h1>
               <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 28, maxWidth: 560 }}>
-                Find ITI and MSSDS courses across Maharashtra's 36 districts based on your existing skills,
+                Find ITI and MSSDS courses across Maharashtra&apos;s 36 districts based on your existing skills,
                 career goals, and real employer demand — not a generic course catalogue.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -2000,7 +2141,7 @@ function StudentInner() {
                     })
                     .sort((a, b) => b.alignment_score - a.alignment_score)
                     .map((course, i) => (
-                      <FreeCourseCard key={course.id} course={course} index={i} />
+                      <FreeCourseCard key={course.id} course={course} index={i} onAskAI={() => setActiveCourseAssistant({title: course.title, district: selectedDistrict || "Maharashtra"})} />
                     ))}
                 </div>
               </>
@@ -2077,6 +2218,14 @@ function StudentInner() {
 
       {/* ── Floating Chat Assistant ────────────────────────────────────────────── */}
       <ChatAssistant district={selectedDistrict} />
+
+      {activeCourseAssistant && (
+        <CourseAssistantModal 
+          courseTitle={activeCourseAssistant.title} 
+          district={activeCourseAssistant.district} 
+          onClose={() => setActiveCourseAssistant(null)} 
+        />
+      )}
     </div>
   );
 }

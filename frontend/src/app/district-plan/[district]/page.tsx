@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.port === "3000") ? "http://localhost:8000" : "");
 
 const C = {
-  orange:"#f97316",orangeLight:"#fff7ed",
+  orange:"#f97316",orangeLight:"#fff7ed",orangeMid:"#fdba74",
   cyan:"#0891b2",cyanLight:"#ecfeff",cyanMid:"#cffafe",
   green:"#16a34a",greenLight:"#f0fdf4",
   purple:"#7c3aed",purpleLight:"#f5f3ff",
@@ -43,6 +43,13 @@ interface SimResult {
   courses_affected: number; trainees_benefited: number;
   avg_alignment_score_gain: number; estimated_employability_lift_pct: number;
   estimated_salary_lift_inr: number; recommendation: string;
+}
+
+interface ForecastData {
+  district: string;
+  emerging_skills: { skill: string; confidence: string; reasoning: string }[];
+  declining_skills: { skill: string; reasoning: string }[];
+  recommended_interventions: string[];
 }
 
 function ScoreBar({ score }: { score: number }) {
@@ -91,25 +98,55 @@ export default function DistrictPlanPage() {
   const [proposal, setProposal] = useState<ProposalData|null>(null);
   const [showProposalModal, setShowProposalModal] = useState(false);
 
+  // Syllabus Drafter State
+  const [draftSyllabus, setDraftSyllabus] = useState<{skill:string, markdown:string}|null>(null);
+  const [draftingSyllabus, setDraftingSyllabus] = useState<string|null>(null);
+
   // Simulator state
   const [simSkill, setSimSkill] = useState("CNC Lathe & Turning Operation");
   const [simHours, setSimHours] = useState(20);
   const [simResult, setSimResult] = useState<SimResult|null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
+  // Forecast state
+  const [forecast, setForecast] = useState<ForecastData|null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
   useEffect(()=>{
     if(!districtName) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    fetch(`${API}/api/v1/districts/${encodeURIComponent(districtName)}/plan`)
-      .then(r=>{if(!r.ok)throw new Error(`No data for: ${districtName}`);return r.json();})
-      .then(d=>{
-        setData(d);
-        setLoading(false);
-        if(d.top_skill_gaps && d.top_skill_gaps.length > 0) {
-          setSimSkill(d.top_skill_gaps[0].skill);
+    const fetchPlan = async () => {
+      try {
+        const endpoint = `/api/v1/districts/${encodeURIComponent(districtName)}/plan`;
+        let r = await fetch(API ? `${API}${endpoint}` : endpoint).catch(() => null);
+        if (!r || !r.ok) {
+          r = await fetch(endpoint).catch(() => null);
         }
-      })
-      .catch(err=>{setError(err.message);setLoading(false);});
+        if (r && r.ok) {
+          const d = await r.json();
+          setData(d);
+          setLoading(false);
+          if (d.top_skill_gaps && d.top_skill_gaps.length > 0) {
+            setSimSkill(d.top_skill_gaps[0].skill);
+          }
+          
+          setForecastLoading(true);
+          try {
+            const fRes = await fetch(`${API}/api/v1/districts/${encodeURIComponent(districtName)}/forecast`);
+            if(fRes.ok) setForecast(await fRes.json());
+          } catch(e) { console.error(e); }
+          setForecastLoading(false);
+          
+          return;
+        }
+        throw new Error(`District Plan data for ${districtName} is initializing...`);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
+        setLoading(false);
+      }
+    };
+    fetchPlan();
   },[districtName]);
 
   const fetchProposal = () => {
@@ -125,6 +162,24 @@ export default function DistrictPlanPage() {
       .then(r => r.json())
       .then(res => { setSimResult(res); setSimLoading(false); })
       .catch(err => { console.error(err); setSimLoading(false); });
+  };
+
+  const generateSyllabus = async (skill: string) => {
+    setDraftingSyllabus(skill);
+    try {
+      const res = await fetch(`${API}/api/v1/districts/${encodeURIComponent(districtName)}/generate-syllabus-amendment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDraftSyllabus({ skill, markdown: data.syllabus_markdown });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setDraftingSyllabus(null);
   };
 
   if(loading) return <div style={{background:C.bg,minHeight:"100vh",padding:"40px",fontFamily:"'Inter',sans-serif"}}><Loader /></div>;
@@ -147,18 +202,32 @@ export default function DistrictPlanPage() {
       <style jsx global>{`
         @keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
         @media print{.no-print{display:none!important}body{background:white!important}.print-card{break-inside:avoid;page-break-inside:avoid}}
       `}</style>
 
       {/* Nav Bar */}
-      <div className="no-print" style={{background:"white",borderBottom:`1px solid ${C.border}`,padding:"14px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+      <div className="no-print" style={{background:"white",borderBottom:`1px solid ${C.border}`,padding:"14px 36px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <button onClick={()=>router.push("/dashboard")} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:"white",color:C.text,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>← Dashboard</button>
+          <button onClick={()=>router.push("/dashboard")} className="btn-dark" style={{ padding: "9px 20px", fontSize: 13, borderRadius: 999 }}>
+            ← Dashboard
+          </button>
           <div style={{fontSize:13,color:C.textMuted}}>/ District Plans / <strong style={{color:C.text}}>{data.district}</strong></div>
         </div>
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={fetchProposal} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.orange}`,background:C.orangeLight,color:C.orange,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>📜 NCVET Memo Proposal</button>
-          <button onClick={()=>window.print()} style={{padding:"8px 18px",borderRadius:8,border:"none",background:`linear-gradient(135deg,${C.purple},${C.cyan})`,color:"white",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 Export PDF</button>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <Link href="/student" className="btn-light" style={{ padding: "8px 18px", fontSize: 13, borderRadius: 999 }}>
+            🎓 Student Portal
+          </Link>
+          <button onClick={fetchProposal}
+            style={{padding:"9px 20px",borderRadius:999,border:`1px solid ${C.orangeMid}`,background:C.orangeLight,color:C.orange,fontSize:13,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:6,boxShadow:"0 1px 3px rgba(249,115,22,0.1)",transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"}}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.background=C.orangeMid; }}
+            onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="none"; (e.currentTarget as HTMLButtonElement).style.background=C.orangeLight; }}
+          >📜 NCVET Memo Proposal</button>
+          <button onClick={()=>window.print()}
+            style={{padding:"9px 22px",borderRadius:999,border:"none",background:`linear-gradient(135deg,${C.purple},${C.cyan})`,color:"white",fontWeight:800,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6,boxShadow:"0 4px 14px rgba(124,58,237,0.25)",transition:"all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"}}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; }}
+            onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="none"; }}
+          >📄 Export PDF</button>
         </div>
       </div>
 
@@ -271,6 +340,74 @@ export default function DistrictPlanPage() {
           </div>
         </div>
 
+        {/* ── FUTURE DEMAND FORECASTING ─────────────────────────────────────── */}
+        <div className="no-print" style={{ background: "white", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 28, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div style={{ padding: "18px 24px", background: `linear-gradient(135deg, ${C.purpleLight}, ${C.cyanLight})`, borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>🔮 Future Skill Demand Forecasting</div>
+              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>AI-powered predictive trends for the next 12-24 months in {data.district}</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 10px", borderRadius: 999, background: C.purple, color: "white" }}>Gemini AI Forecast</span>
+          </div>
+
+          <div style={{ padding: "24px" }}>
+            {forecastLoading ? (
+              <div style={{ textAlign: "center", padding: 40, color: C.textMuted, fontSize: 14 }}>
+                <div style={{ fontSize: 24, marginBottom: 8, animation: "pulse 1.5s infinite" }}>🔮</div>
+                Analyzing job market velocity & predicting future trends...
+              </div>
+            ) : forecast ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                {/* Emerging Skills */}
+                <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.green, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                    <span>🚀</span> Emerging Skills (Next 12-18 Months)
+                  </div>
+                  {forecast.emerging_skills.map((skill, idx) => (
+                    <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{skill.skill}</span>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: skill.confidence === "High" ? C.greenLight : C.amberLight, color: skill.confidence === "High" ? C.green : C.amber }}>
+                          {skill.confidence} Confidence
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Declining Skills & Interventions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`, padding: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.red, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                      <span>⚠️</span> Declining or Stagnant Skills
+                    </div>
+                    {forecast.declining_skills.map((skill, idx) => (
+                      <div key={idx} style={{ background: "white", padding: 12, borderRadius: 8, marginBottom: 10, border: `1px solid ${C.border}` }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 4 }}>{skill.skill}</div>
+                        <div style={{ fontSize: 12, color: C.textSub }}>{skill.reasoning}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ background: C.purpleLight, borderRadius: 12, border: `1px solid ${C.purple}30`, padding: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.purple, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                      <span>💡</span> Recommended Policy Interventions
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: C.textSub, lineHeight: 1.6 }}>
+                      {forecast.recommended_interventions.map((intervention, idx) => (
+                        <li key={idx} style={{ marginBottom: 4 }}>{intervention}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Forecast could not be generated at this time.</div>
+            )}
+          </div>
+        </div>
+
         {/* Course Health + Trainees */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
           <div className="print-card" style={{background:"white",borderRadius:16,padding:"24px",border:`1px solid ${C.border}`}}>
@@ -320,7 +457,16 @@ export default function DistrictPlanPage() {
                       <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Missing in {item.courses_affected} course{item.courses_affected!==1?"s":""}</div>
                     </div>
                   </div>
-                  <PriorityBadge score={item.priority_score} />
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <button 
+                      onClick={() => generateSyllabus(item.skill)}
+                      disabled={draftingSyllabus === item.skill}
+                      style={{padding:"6px 14px", borderRadius:999, border:"none", background:`linear-gradient(135deg,${C.purple},${C.cyan})`, color:"white", fontSize:12, fontWeight:700, cursor: draftingSyllabus === item.skill ? "wait" : "pointer", display:"flex", alignItems:"center", gap:6}}
+                    >
+                      {draftingSyllabus === item.skill ? "Generating..." : "✨ Draft NCVET Syllabus"}
+                    </button>
+                    <PriorityBadge score={item.priority_score} />
+                  </div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
                   {[
@@ -493,6 +639,28 @@ export default function DistrictPlanPage() {
               }} style={{ padding: "9px 20px", borderRadius: 10, background: C.orange, color: "white", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
                 📥 Download Memo (.txt)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Syllabus Draft Modal */}
+      {draftSyllabus && (
+        <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.6)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:24}}>
+          <div style={{background:"white",width:"100%",maxWidth:800,maxHeight:"90vh",borderRadius:24,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 20px 40px rgba(0,0,0,0.2)",animation:"fadeInUp 0.3s ease"}}>
+            <div style={{padding:"24px 32px",background:`linear-gradient(135deg,${C.bg},${C.cyanLight})`,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:800,color:C.purple,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>AI Generated Document</div>
+                <div style={{fontSize:22,fontWeight:900,color:C.text}}>NCVET Syllabus: {draftSyllabus.skill}</div>
+              </div>
+              <button onClick={()=>setDraftSyllabus(null)} style={{background:"none",border:"none",fontSize:24,color:C.textMuted,cursor:"pointer",padding:8}}>×</button>
+            </div>
+            <div style={{padding:"32px",overflowY:"auto",flex:1,fontSize:14,lineHeight:1.7,color:C.textSub,fontFamily:"'Inter',sans-serif",whiteSpace:"pre-wrap"}}>
+              {draftSyllabus.markdown}
+            </div>
+            <div style={{padding:"20px 32px",borderTop:`1px solid ${C.border}`,background:C.bg,display:"flex",justifyContent:"flex-end",gap:12}}>
+              <button onClick={()=>setDraftSyllabus(null)} style={{padding:"10px 20px",borderRadius:10,border:`1px solid ${C.border}`,background:"white",color:C.text,fontWeight:600,cursor:"pointer"}}>Close</button>
+              <button onClick={()=>window.print()} style={{padding:"10px 20px",borderRadius:10,border:"none",background:`linear-gradient(135deg,${C.purple},${C.cyan})`,color:"white",fontWeight:700,cursor:"pointer"}}>Print Document</button>
             </div>
           </div>
         </div>

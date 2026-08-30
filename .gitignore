@@ -1,5 +1,10 @@
 # Documentation / private project notes
 *.md
+!README.md
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
 
 # Environment variables / secrets
 .env
@@ -20,6 +25,8 @@ venv/
 env/
 *.db
 *.sqlite
+*.db-shm
+*.db-wal
 
 # Next.js & Build files
 .next/
@@ -28,3 +35,6 @@ build/
 
 # macOS
 .DS_Store
+
+# Firebase Service Account Keys
+*firebase-adminsdk*.json

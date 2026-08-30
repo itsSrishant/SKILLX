@@ -18,6 +18,7 @@ const translations = {
     navIndustry: "Industry Demand",
     navDistrictPlan: "District Plan",
     navDistricts: "Districts",
+    navForecast: "Demand Forecast",
     navGaps: "Skill Gaps",
     navBridge: "Bridge Packs",
     navCrawler: "Data Crawler",
@@ -133,6 +134,7 @@ const translations = {
     navIndustry: "उद्योग मागणी",
     navDistrictPlan: "जिल्हा योजना",
     navDistricts: "जिल्हे",
+    navForecast: "मागणी अंदाज",
     navGaps: "कौशल्य तफावत",
     navBridge: "ब्रिज पॅक",
     navCrawler: "डेटा क्रॉलर",
@@ -248,6 +250,7 @@ const translations = {
     navIndustry: "उद्योग मांग",
     navDistrictPlan: "जिला योजना",
     navDistricts: "जिले",
+    navForecast: "मांग पूर्वानुमान",
     navGaps: "कौशल अंतर",
     navBridge: "ब्रिज पैक",
     navCrawler: "डेटा क्रॉलर",
@@ -372,6 +375,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("skillx_lang") as Lang | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved === "en" || saved === "mr" || saved === "hi") setLangState(saved);
   }, []);
 

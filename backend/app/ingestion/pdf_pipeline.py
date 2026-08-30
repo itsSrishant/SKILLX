@@ -8,10 +8,19 @@ import os
 import re
 import json
 import hashlib
+import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-import fitz  # PyMuPDF
-import pdfplumber
+
+logger = logging.getLogger(__name__)
+
+try:
+    import fitz  # PyMuPDF
+    import pdfplumber
+except ImportError:
+    logger.warning("PDF libraries not installed. PDF ingestion will be disabled.")
+    fitz = None
+    pdfplumber = None
 
 class PDFCurriculumIngestor:
     def __init__(self, pdf_path: str, source_url: Optional[str] = None, district: str = "Pune"):
@@ -28,8 +37,11 @@ class PDFCurriculumIngestor:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def detect_pdf_type() -> str:
-        """Determines if PDF is text-based, scanned, or mixed."""
+    def detect_pdf_type(self) -> str:
+        \"\"\"Determines if PDF is text-based, scanned, or mixed.\"\"\"
+        if fitz is None:
+            raise ImportError("PyMuPDF (fitz) is not installed")
+        
         total_text_chars = 0
         pages_count = 0
         doc = fitz.open(self.pdf_path)
@@ -47,8 +59,11 @@ class PDFCurriculumIngestor:
         else:
             return "SCANNED"
 
-    def extract_structured_json() -> Dict[str, Any]:
-        """Extracts canonical structured JSON with provenance tracking."""
+    def extract_structured_json(self) -> Dict[str, Any]:
+        \"\"\"Extracts canonical structured JSON with provenance tracking.\"\"\"
+        if fitz is None or pdfplumber is None:
+            raise ImportError("PDF libraries are not installed")
+
         pdf_type = self.detect_pdf_type()
         doc = fitz.open(self.pdf_path)
         
