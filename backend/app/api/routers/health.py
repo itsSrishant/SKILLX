@@ -18,6 +18,7 @@ from app.crawler.async_crawler import run_full_async_crawl, get_crawler_status
 from app.api.dependencies import verify_admin_key, require_admin
 from app.core.audit import audit_logger
 from fastapi import Request
+from app.core.rate_limiter import limiter
 
 router = APIRouter(tags=['health'])
 
