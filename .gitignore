@@ -38,3 +38,6 @@ build/
 
 # Firebase Service Account Keys
 *firebase-adminsdk*.json
+
+scratch_vite_login.zip
+scratch_vite_login/
