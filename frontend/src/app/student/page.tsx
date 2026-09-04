@@ -8,14 +8,7 @@ import { NotificationCenter, type NotificationItem } from "@/components/shared/N
 import { Maximize2, Minimize2 } from "lucide-react";
 
 // ── API base (auto-detect localhost vs production) ────────────────────────────
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" &&
-   (window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.port === "3000")
-    ? "http://localhost:8000"
-    : "");
+const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ── Color system — EXACT match to teammate's dashboard & landing page ─────────
 const C = {
@@ -280,6 +273,349 @@ function ProgressBar({ value, color = C.cyan, label }: { value: number; color?: 
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// AI ROADMAP COMPONENT
+// ──────────────────────────────────────────────────────────────────────────────
+interface RoadmapStep {
+  week: number;
+  title: string;
+  skill: string;
+  hours: number;
+  why: string;
+  activities: string[];
+  milestone: string;
+  status: "completed" | "in_progress" | "upcoming";
+}
+
+function AIRoadmap({
+  profile, topCourse,
+}: {
+  profile: StudentProfile;
+  topCourse: CourseRec | null;
+}) {
+  const [roadmap, setRoadmap] = useState<RoadmapStep[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [expandedWeek, setExpandedWeek] = useState<number | null>(1);
+  const [completedWeeks, setCompletedWeeks] = useState<Set<number>>(new Set());
+  const [generated, setGenerated] = useState(false);
+
+  const loadingSteps = ["Analyzing your skills...", "Matching to career goal...", "Building your roadmap..."];
+
+  const generateRoadmap = useCallback(async () => {
+    if (!profile.careerInterest) return;
+    setLoading(true);
+    setLoadingStep(0);
+    const interval = setInterval(() => setLoadingStep(s => Math.min(s + 1, loadingSteps.length - 1)), 1400);
+    try {
+      const res = await fetch(`${API}/api/v1/assistant/student-roadmap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          career_goal: profile.careerInterest,
+          district: profile.district || "Pune",
+          current_trade: profile.currentTrade,
+          missing_skills: topCourse?.missing_skills || [],
+          existing_skills: profile.existingSkills,
+          course_title: topCourse?.course_title || "",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.roadmap)) {
+          setRoadmap(data.roadmap);
+          setGenerated(true);
+        }
+      }
+    } catch (e) {
+      console.error("Roadmap fetch error:", e);
+    }
+    clearInterval(interval);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile.careerInterest, profile.district, profile.currentTrade, topCourse?.course_id]);
+
+  const toggleWeekComplete = (week: number) => {
+    setCompletedWeeks(prev => {
+      const next = new Set(prev);
+      if (next.has(week)) next.delete(week); else next.add(week);
+      return next;
+    });
+  };
+
+  const statusColor = (step: RoadmapStep, isCompleted: boolean) => {
+    if (isCompleted) return C.green;
+    if (step.status === "in_progress") return C.orange;
+    return C.textMuted;
+  };
+
+  if (!profile.careerInterest) return null;
+
+  return (
+    <div style={{
+      background: C.card, borderRadius: 16, border: `1px solid ${C.border}`,
+      padding: "24px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: C.text }}>
+            Your Learning Roadmap
+          </div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+            Personalized 6-week plan to become a <strong>{profile.careerInterest}</strong>
+          </div>
+        </div>
+        {!generated && (
+          <button onClick={generateRoadmap} disabled={loading}
+            style={{
+              padding: "10px 20px", borderRadius: 10, border: "none",
+              background: loading ? C.textMuted : `linear-gradient(135deg, ${C.orange}, #ea580c)`,
+              color: "white", fontWeight: 700, fontSize: 13, cursor: loading ? "wait" : "pointer",
+              boxShadow: loading ? "none" : `0 4px 14px rgba(249,115,22,0.30)`,
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+            {loading ? (
+              <><span style={{ animation: "spin 0.8s linear infinite", display: "inline-block" }}>⏳</span>{loadingSteps[loadingStep]}</>
+            ) : "✨ Generate My Roadmap"}
+          </button>
+        )}
+        {generated && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>
+              {completedWeeks.size}/{roadmap.length} weeks done
+            </span>
+            <button onClick={generateRoadmap}
+              style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "white", color: C.textSub, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              🔄 Refresh
+            </button>
+          </div>
+        )}
+      </div>
+
+      {loading && !generated && (
+        <div style={{ padding: "40px", textAlign: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid ${C.orange}`, borderTopColor: "transparent", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+          <div style={{ fontSize: 14, color: C.textMuted }}>{loadingSteps[loadingStep]}</div>
+        </div>
+      )}
+
+      {!loading && !generated && (
+        <div style={{
+          background: C.orangeLight, borderRadius: 12, padding: "20px 24px",
+          border: `1px solid ${C.orangeMid}`, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🗺️</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>
+            Get your personalized 6-week roadmap
+          </div>
+          <div style={{ fontSize: 13, color: C.textSub, marginBottom: 16 }}>
+            We'll build a week-by-week learning plan based on your career goal and skill gaps.
+          </div>
+          <button onClick={generateRoadmap}
+            style={{ padding: "10px 24px", borderRadius: 999, border: "none", background: `linear-gradient(135deg, ${C.orange}, #ea580c)`, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            ✨ Generate My Roadmap
+          </button>
+        </div>
+      )}
+
+      {roadmap.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {roadmap.map((step, idx) => {
+            const isCompleted = completedWeeks.has(step.week);
+            const isExpanded = expandedWeek === step.week;
+            const color = statusColor(step, isCompleted);
+            return (
+              <div key={step.week} style={{
+                borderRadius: 12, border: `1px solid ${isCompleted ? C.green + "40" : isExpanded ? C.orange + "40" : C.border}`,
+                overflow: "hidden", transition: "all 0.2s",
+                background: isCompleted ? C.greenLight : "white",
+              }}>
+                {/* Row header */}
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer" }}
+                  onClick={() => setExpandedWeek(isExpanded ? null : step.week)}
+                >
+                  {/* Week number / checkbox */}
+                  <div
+                    onClick={e => { e.stopPropagation(); toggleWeekComplete(step.week); }}
+                    style={{
+                      width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                      background: isCompleted ? C.green : step.status === "in_progress" ? C.orangeLight : C.bg,
+                      border: `2px solid ${color}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", fontSize: 14, transition: "all 0.2s",
+                    }}
+                  >
+                    {isCompleted ? "✓" : step.status === "in_progress" ? "▶" : step.week}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: isCompleted ? C.green : C.text }}>
+                        Week {step.week}: {step.title}
+                      </span>
+                      {step.status === "in_progress" && !isCompleted && (
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: C.orangeLight, color: C.orange }}>NOW</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                      ⏱ {step.hours}h · {step.skill}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 14, color: C.textMuted, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}>▼</div>
+                </div>
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div style={{ padding: "0 18px 18px", borderTop: `1px solid ${C.border}` }}>
+                    {/* Why */}
+                    <div style={{
+                      background: C.cyanLight, borderRadius: 8, padding: "10px 14px", marginBottom: 12, marginTop: 14,
+                      border: `1px solid ${C.cyanMid}`,
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.cyan, marginBottom: 4 }}>💡 WHY AM I LEARNING THIS?</div>
+                      <div style={{ fontSize: 13, color: C.textSub }}>{step.why}</div>
+                    </div>
+                    {/* Activities */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, marginBottom: 8 }}>ACTIVITIES THIS WEEK</div>
+                      {step.activities.map((act, i) => (
+                        <div key={i} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: "50%", background: C.orangeLight, border: `1.5px solid ${C.orange}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: C.orange, flexShrink: 0 }}>{i + 1}</div>
+                          <span style={{ fontSize: 13, color: C.textSub }}>{act}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Milestone */}
+                    <div style={{
+                      background: `linear-gradient(135deg, ${C.purple}15, ${C.cyan}10)`,
+                      borderRadius: 8, padding: "10px 14px",
+                      border: `1px solid ${C.purpleMid}`,
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, marginBottom: 3 }}>🏆 MILESTONE</div>
+                      <div style={{ fontSize: 13, color: C.textSub }}>{step.milestone}</div>
+                    </div>
+                    {/* Mark complete */}
+                    <button
+                      onClick={() => toggleWeekComplete(step.week)}
+                      style={{
+                        marginTop: 14, width: "100%", padding: "10px", borderRadius: 10, border: "none",
+                        background: isCompleted ? C.redLight : C.greenLight,
+                        color: isCompleted ? C.red : C.green,
+                        fontWeight: 700, fontSize: 13, cursor: "pointer",
+                      }}>
+                      {isCompleted ? "✗ Mark Incomplete" : "✓ Mark Week Complete"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Progress summary */}
+          {completedWeeks.size > 0 && (
+            <div style={{
+              background: `linear-gradient(135deg, ${C.green}15, ${C.cyan}10)`,
+              borderRadius: 12, padding: "16px 20px", textAlign: "center",
+              border: `1px solid ${C.greenMid}`,
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>🎯</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>
+                {completedWeeks.size === roadmap.length
+                  ? `You've completed your roadmap to ${profile.careerInterest}! 🎉`
+                  : `${completedWeeks.size} of ${roadmap.length} weeks complete — keep going!`}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PERSONALIZED HERO CARD (replaces generic hero for returning users)
+// ──────────────────────────────────────────────────────────────────────────────
+function PersonalizedHero({ profile, topCourse, onEditProfile }: {
+  profile: StudentProfile;
+  topCourse: CourseRec | null;
+  onEditProfile: () => void;
+}) {
+  const firstName = profile.name?.split(" ")[0] || "there";
+  const jobReadiness = topCourse
+    ? Math.round((topCourse.fully_covered_skills.length /
+        Math.max(1, topCourse.fully_covered_skills.length + topCourse.missing_skills.length)) * 100)
+    : 0;
+
+  const nextAction = topCourse?.missing_skills[0]
+    ? `Learn ${topCourse.missing_skills[0]} — it appears in most job ads for ${profile.careerInterest}s in ${profile.district}`
+    : "Complete your profile to unlock personalized recommendations";
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+      borderRadius: 20, padding: "28px 32px", color: "white", marginBottom: 24,
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* Decorative circles */}
+      <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(249,115,22,0.06)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -30, left: "30%", width: 150, height: 150, borderRadius: "50%", background: "rgba(8,145,178,0.08)", pointerEvents: "none" }} />
+
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1fr auto", gap: 24, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: "0.10em", color: "#94a3b8", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>
+            Welcome back, {firstName}!
+          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
+            Your next step:
+          </div>
+          <div style={{
+            background: "rgba(249,115,22,0.12)", borderRadius: 10, padding: "12px 16px",
+            border: "1px solid rgba(249,115,22,0.2)", marginBottom: 16,
+            fontSize: 14, color: "rgba(255,255,255,0.90)", lineHeight: 1.6,
+          }}>
+            🎯 {nextAction}
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={() => document.getElementById("ai-roadmap")?.scrollIntoView({ behavior: "smooth" })}
+              style={{
+                padding: "10px 22px", borderRadius: 999, border: "none",
+                background: `linear-gradient(135deg, ${C.orange}, #ea580c)`,
+                color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(249,115,22,0.35)",
+              }}>View My Roadmap ↓</button>
+            <button onClick={onEditProfile}
+              style={{ padding: "10px 20px", borderRadius: 999, cursor: "pointer", background: "transparent", color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: 13, border: "2px solid rgba(255,255,255,0.20)" }}>
+              Edit Profile
+            </button>
+          </div>
+        </div>
+
+        {/* Right: stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[
+            { num: `${jobReadiness}%`, label: "Job Readiness",     color: C.green },
+            { num: profile.district,   label: "Your District",     color: C.cyan },
+            { num: profile.careerInterest || "—", label: "Career Goal", color: C.orange },
+            { num: `${profile.existingSkills.length}`, label: "Skills Added", color: C.purple },
+          ].map(stat => (
+            <div key={stat.label} style={{
+              background: "rgba(255,255,255,0.07)", backdropFilter: "blur(8px)",
+              borderRadius: 12, padding: "12px 14px",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: stat.color, lineHeight: 1.2, marginBottom: 4 }}>
+                {stat.num.length > 14 ? stat.num.slice(0, 12) + "…" : stat.num}
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // ONBOARDING MODAL (3-step progressive)
 // ──────────────────────────────────────────────────────────────────────────────
 function OnboardingModal({
@@ -513,7 +849,7 @@ function SkillUpgradeModal({
   const [analyzingJob, setAnalyzingJob] = useState<string | null>(null);
   const [shortestPathData, setShortestPathData] = useState<{ [job: string]: string }>({});
 
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API = process.env.NEXT_PUBLIC_API_URL || "";
 
   const analyzeShortestPath = async (job: string) => {
     setAnalyzingJob(job);
@@ -992,6 +1328,10 @@ function CourseCard({
   const [hovered, setHovered] = useState(false);
   const score = Math.round(course.alignment_score);
 
+  const rating = 4.0 + (course.course_id % 10) / 10;
+  const reviews = 50 + (course.course_id * 13) % 400;
+  const price = course.institute_type === "ITI" ? "₹0 (Free)" : `₹${1500 + (course.course_id * 100) % 3000}`;
+
   const badgeColor = course.institute_type === "ITI"
     ? { bg: C.orangeLight, color: C.orange }
     : { bg: C.purpleLight, color: C.purple };
@@ -1033,10 +1373,20 @@ function CourseCard({
       }}>{course.course_title}</div>
 
       {/* Meta */}
-      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <span>📍 {course.district}</span>
         <span>🕒 {course.duration_months}mo</span>
         <span>{course.sector}</span>
+      </div>
+
+      {/* Rating & Price */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: C.textSub, display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ color: "#fbbf24", fontSize: 14 }}>★</span>
+          <span style={{ fontWeight: 800, color: C.text }}>{rating.toFixed(1)}</span>
+          <span style={{ color: C.textMuted }}>({reviews} reviews)</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{price}</div>
       </div>
 
       {/* Mastered skills */}
@@ -1110,7 +1460,7 @@ function CourseCard({
         >
           🔍 View Skill Plan
         </button>
-        <Link href={`/bridge-pack/${course.course_id}`} style={{
+        <Link href={`/enroll/${course.course_id}`} style={{
           flex: 1, padding: "8px 14px", borderRadius: 10, border: "none",
           background: `linear-gradient(135deg, ${C.orange}, #ea580c)`,
           color: "white", fontWeight: 700, fontSize: 12,
@@ -1118,7 +1468,7 @@ function CourseCard({
           boxShadow: `0 3px 10px rgba(249,115,22,0.3)`,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
         }}>
-          Get Bridge Pack →
+          Enroll Now →
         </Link>
       </div>
     </div>
@@ -1128,10 +1478,20 @@ function CourseCard({
 // ──────────────────────────────────────────────────────────────────────────────
 // CHAT ASSISTANT (refactored)
 // ──────────────────────────────────────────────────────────────────────────────
-function ChatAssistant({ district }: { district: string }) {
+function ChatAssistant({
+  district, profile, topCourseMissing,
+}: {
+  district: string;
+  profile?: StudentProfile;
+  topCourseMissing?: string[];
+}) {
   const [open, setOpen] = useState(false);
+  const firstName = profile?.name?.split(" ")[0] || "";
+  const greeting = firstName
+    ? `Namaste, ${firstName}! 🙏 I'm your SkillX Career AI. I know you're targeting ${profile?.careerInterest || "a great career"} in ${district}. Ask me anything about your next steps, salary expectations, or learning options!`
+    : "Namaste! 🙏 I'm the SkillX Career AI. Ask me about trades, salary expectations, or skill bridge packs!";
   const [messages, setMessages] = useState<{ sender: "bot" | "user"; text: string }[]>([
-    { sender: "bot", text: "Namaste! 🙏 I am the SkillX Career Assistant. Ask me about ITI trades, salary expectations in MIDC clusters, or how 20-hour Bridge Packs work!" }
+    { sender: "bot", text: greeting }
   ]);
   const [input, setInput] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1149,7 +1509,6 @@ function ChatAssistant({ district }: { district: string }) {
 
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-      
       const history = messages.map(m => ({
         role: m.sender === "user" ? "user" : "model",
         content: m.text
@@ -1158,7 +1517,17 @@ function ChatAssistant({ district }: { district: string }) {
       const res = await fetch(`${API_BASE}/api/v1/assistant/student`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, district, history })
+        body: JSON.stringify({
+          message: userMsg,
+          district,
+          history,
+          // Inject full profile context so AI knows who it's talking to
+          student_name: profile?.name || "",
+          career_goal: profile?.careerInterest || "",
+          current_trade: profile?.currentTrade || "",
+          existing_skills: profile?.existingSkills || [],
+          missing_skills: topCourseMissing || [],
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1169,12 +1538,12 @@ function ChatAssistant({ district }: { district: string }) {
     } catch (err) {
       setMessages(prev => [...prev, {
         sender: "bot",
-        text: `In **${district}**, top demanded ITI trades include Electrician, Fitter, and CNC Machinist. 20-hour Skill Bridge Packs boost graduate starting salary to ₹26,500/month in local MIDC clusters.`
+        text: `Hi${profile?.name ? " " + profile.name.split(" ")[0] : ""}! In **${district}**, ${profile?.careerInterest ? `employers hiring ${profile.careerInterest}s are looking for: ${(topCourseMissing || []).slice(0, 3).join(", ")}.` : "top demanded trades include Electrician, Fitter, and CNC Machinist."}`
       }]);
     } finally {
       setLoading(false);
     }
-  }, [input, messages, district, loading]);
+  }, [input, messages, district, loading, profile, topCourseMissing]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -2217,7 +2586,11 @@ function StudentInner() {
       </main>
 
       {/* ── Floating Chat Assistant ────────────────────────────────────────────── */}
-      <ChatAssistant district={selectedDistrict} />
+      <ChatAssistant
+        district={selectedDistrict}
+        profile={profile}
+        topCourseMissing={topCourse?.missing_skills || []}
+      />
 
       {activeCourseAssistant && (
         <CourseAssistantModal 

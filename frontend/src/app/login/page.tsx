@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Navbar } from "@/components/landing/Navbar";
+
 import styles from "./login.module.css";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
@@ -48,8 +48,6 @@ export default function Login() {
 
   return (
     <>
-      <Navbar scrolled={true} />
-      
       <div className={styles.pageWrapper}>
         <div className={styles.background}>
           <div className={styles.bgImage} />

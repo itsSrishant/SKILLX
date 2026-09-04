@@ -10,6 +10,7 @@ export function EnterDashboardButton({ className, style, label }: { className?: 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     if (!auth) return;
@@ -34,6 +35,8 @@ export function EnterDashboardButton({ className, style, label }: { className?: 
       }}
       className={`btn-dark ${className || ""}`}
       disabled={loading}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         ...style,
         cursor: loading ? "wait" : "pointer",
@@ -42,7 +45,11 @@ export function EnterDashboardButton({ className, style, label }: { className?: 
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
-        transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        transform: hovered && !loading ? "translateY(-3px)" : "none",
+        boxShadow: hovered && !loading 
+          ? "0 12px 36px rgba(249,115,22,0.5), 0 0 20px rgba(255, 255, 255, 0.8)" 
+          : style?.boxShadow,
       }}
     >
       {loading ? (

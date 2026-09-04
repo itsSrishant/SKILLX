@@ -1,10 +1,12 @@
 "use client";
-import React, { forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import Link from "next/link";
 import { EnterDashboardButton } from "./Navbar";
 import { Landmark, Cpu, Target, Briefcase } from "lucide-react";
 
 export const Hero = forwardRef<HTMLDivElement>((_, ref) => {
+  const [hoveredStudent, setHoveredStudent] = useState(false);
+
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {/* 1. Hero Section */}
@@ -65,7 +67,18 @@ export const Hero = forwardRef<HTMLDivElement>((_, ref) => {
                 className="btn-dark"
                 style={{ padding: "16px 36px", fontSize: 16, boxShadow: "0 8px 32px rgba(255, 122, 0, 0.45), 0 0 20px rgba(255, 255, 255, 0.8)" }}
               />
-              <Link href="/student" className="btn-light" style={{ padding: "16px 36px", fontSize: 16, boxShadow: "0 8px 32px rgba(37, 99, 235, 0.25), 0 0 20px rgba(255, 255, 255, 0.8)" }}>
+              <Link 
+                href="/student" 
+                className="btn-light" 
+                onMouseEnter={() => setHoveredStudent(true)}
+                onMouseLeave={() => setHoveredStudent(false)}
+                style={{ 
+                  padding: "16px 36px", 
+                  fontSize: 16, 
+                  boxShadow: hoveredStudent ? "0 12px 36px rgba(37, 99, 235, 0.4), 0 0 20px rgba(255, 255, 255, 1)" : "0 8px 32px rgba(37, 99, 235, 0.25), 0 0 20px rgba(255, 255, 255, 0.8)",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  transform: hoveredStudent ? "translateY(-3px)" : "none",
+                }}>
                 Student Portal
               </Link>
             </div>
