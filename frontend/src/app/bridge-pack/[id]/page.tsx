@@ -15,6 +15,7 @@ const C = {
   skyMid:      "#bae6fd",
   green:       "#138808", // India Green
   greenLight:  "#f0fdf4",
+  greenMid:    "#86efac",
   red:         "#dc2626",
   redLight:    "#fef2f2",
   purple:      "#9333ea",
