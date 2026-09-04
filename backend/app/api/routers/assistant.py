@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 # IN-MEMORY LLM CACHE (30-minute TTL for demo stability)
 # ──────────────────────────────────────────────────────────────────────────────
 _llm_cache: Dict[str, Dict[str, Any]] = {}
-_LLM_CACHE_TTL = 1800  # 30 minutes
+_LLM_CACHE_TTL = 60  # 1 minute for dynamic feel
 
 def _cache_get(key: str) -> Optional[str]:
     entry = _llm_cache.get(key)
@@ -523,7 +523,7 @@ Be specific about the trades and skills mentioned in the data. Sound confident a
 
     user_prompt = f"Write an executive briefing for {district} based on this data:\n{real_data_context}"
 
-    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, temperature=0.3)
+    ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, temperature=0.7)
 
     if ai_reply:
         _cache_set(cache_key, ai_reply)
