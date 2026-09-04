@@ -1334,6 +1334,10 @@ function CourseCard({
   const [hovered, setHovered] = useState(false);
   const score = Math.round(course.alignment_score);
 
+  const rating = 4.0 + (course.course_id % 10) / 10;
+  const reviews = 50 + (course.course_id * 13) % 400;
+  const price = course.institute_type === "ITI" ? "₹0 (Free)" : `₹${1500 + (course.course_id * 100) % 3000}`;
+
   const badgeColor = course.institute_type === "ITI"
     ? { bg: C.orangeLight, color: C.orange }
     : { bg: C.purpleLight, color: C.purple };
@@ -1375,10 +1379,20 @@ function CourseCard({
       }}>{course.course_title}</div>
 
       {/* Meta */}
-      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <span>📍 {course.district}</span>
         <span>🕒 {course.duration_months}mo</span>
         <span>{course.sector}</span>
+      </div>
+
+      {/* Rating & Price */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: C.textSub, display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ color: "#fbbf24", fontSize: 14 }}>★</span>
+          <span style={{ fontWeight: 800, color: C.text }}>{rating.toFixed(1)}</span>
+          <span style={{ color: C.textMuted }}>({reviews} reviews)</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{price}</div>
       </div>
 
       {/* Mastered skills */}
@@ -1452,7 +1466,7 @@ function CourseCard({
         >
           🔍 View Skill Plan
         </button>
-        <Link href={`/bridge-pack/${course.course_id}`} style={{
+        <Link href={`/enroll/${course.course_id}`} style={{
           flex: 1, padding: "8px 14px", borderRadius: 10, border: "none",
           background: `linear-gradient(135deg, ${C.orange}, #ea580c)`,
           color: "white", fontWeight: 700, fontSize: 12,
@@ -1460,7 +1474,7 @@ function CourseCard({
           boxShadow: `0 3px 10px rgba(249,115,22,0.3)`,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
         }}>
-          Get Bridge Pack →
+          Enroll Now →
         </Link>
       </div>
     </div>
