@@ -7,14 +7,7 @@ import { GovAssistantModal } from "@/components/dashboard/GovAssistantModal";
 import { CourseAssistantModal } from "@/components/dashboard/CourseAssistantModal";
 import { NotificationCenter, type NotificationItem } from "@/components/shared/NotificationCenter";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" &&
-   (window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.port === "3000")
-    ? "http://localhost:8000"
-    : "");
+const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 const C = {
   orange:      "#f97316",

@@ -72,7 +72,7 @@ export function CourseAssistantModal({
         content: m.content
       }));
 
-      const API = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && window.location.port === "3000" ? "http://localhost:8000" : "");
+      const API = process.env.NEXT_PUBLIC_API_URL || "";
       const res = await fetch(`${API}/api/v1/assistant/course`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

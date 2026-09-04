@@ -486,7 +486,12 @@ class Engine5LLMBridgePack:
         if not gap:
             return {"error": f"Gap analysis for course {course_id} not found."}
 
-        missing_skills = gap.missing_skills or []
+        # Limit to top 3 missing skills to avoid generating hundreds of modules (5000+ hours)
+        if gap.top_skill_gaps and isinstance(gap.top_skill_gaps, list):
+            missing_skills = [g.get("skill", "") for g in gap.top_skill_gaps[:3]]
+        else:
+            missing_skills = (gap.missing_skills or [])[:3]
+        
         if not missing_skills:
             return {
                 "course_id": course.id,

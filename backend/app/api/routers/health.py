@@ -848,13 +848,14 @@ def simulate_intervention(
     }
 
 @router.get("/api/v1/recommendations/bridge-pack/{course_id}")
-def get_bridge_pack(course_id: int, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def get_bridge_pack(request: Request, course_id: int, db: Session = Depends(get_db)):
     """Get (or generate) a 20-hour Skill Bridge Pack for a course's missing skills."""
     engine5 = Engine5LLMBridgePack(db)
     return engine5.generate_for_course(course_id)
 
 @router.post("/api/v1/recommendations/bridge-pack/{course_id}/generate")
-def generate_bridge_pack(course_id: int, db: Session = Depends(get_db)):
+def generate_bridge_pack(course_id: int, db: Session = Depends(get_db), admin_user: dict = Depends(require_admin)):
     """Force regenerate the bridge pack for a course (re-calls LLM if API key set)."""
     engine5 = Engine5LLMBridgePack(db)
     return engine5.generate_for_course(course_id)
@@ -988,7 +989,8 @@ class SyllabusRequest(BaseModel):
     skill: str
 
 @router.post("/api/v1/districts/{district_name}/generate-syllabus-amendment")
-def generate_syllabus_amendment(district_name: str, req: SyllabusRequest):
+@limiter.limit("5/minute")
+def generate_syllabus_amendment(request: Request, district_name: str, req: SyllabusRequest, admin_user: dict = Depends(require_admin)):
     """Generates an NCVET formatted syllabus for a missing skill."""
     sys_prompt = "You are a senior curriculum designer for NCVET and DVET Maharashtra."
     user_prompt = f"Write a formal 20-hour syllabus module to teach '{req.skill}' in the {district_name} district. Include: 1. Module Name 2. Learning Outcomes 3. Theory (Hours) 4. Practical (Hours) 5. Lab Tools Required 6. Assessment Criteria. Format in beautiful Markdown."
