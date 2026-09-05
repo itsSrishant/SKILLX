@@ -4,7 +4,7 @@ import { Bot, Send, X, Sparkles, Building2, ShieldCheck, RefreshCw, Maximize2, M
 
 export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: string }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<{ sender: "bot" | "user"; text: string; source?: string }[]>([
+  const [messages, setMessages] = useState<{ sender: "bot" | "user"; text: string; source?: string; confidence?: string; sources?: string[] }[]>([
     {
       sender: "bot",
       text: "🏛️ **Namaste Director / Officer!**\n\nI am your **AI Skill Assistant**. Ask me about district alignment scores, critical deficit courses, NCVET/MSSDS syllabus revision proposals, or intervention budget planning."
@@ -45,7 +45,13 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
 
       if (res.ok) {
         const data = await res.json();
-        setMessages(prev => [...prev, { sender: "bot", text: data.reply, source: data.source }]);
+        setMessages(prev => [...prev, { 
+          sender: "bot", 
+          text: data.reply, 
+          source: data.source,
+          confidence: data.confidence,
+          sources: data.sources
+        }]);
       } else {
         throw new Error("Government Assistant API error");
       }
@@ -243,7 +249,23 @@ export function GovAssistantModal({ selectedDistrict }: { selectedDistrict?: str
             }}
           >
             {m.text}
-            {m.source === "llm-gemini" && (
+            
+            {m.sender === "bot" && (m.confidence || (m.sources && m.sources.length > 0)) && (
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(0,0,0,0.05)", fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+                {m.confidence && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, color: m.confidence === "HIGH" ? "#16a34a" : m.confidence === "MEDIUM" ? "#ca8a04" : "#dc2626", fontWeight: 700 }}>
+                    {m.confidence === "HIGH" ? "✨ HIGH CONFIDENCE" : m.confidence === "MEDIUM" ? "⚠️ MEDIUM CONFIDENCE" : "🚨 LOW CONFIDENCE"}
+                  </div>
+                )}
+                {m.sources && m.sources.length > 0 && (
+                  <div style={{ color: "#64748b" }}>
+                    <strong>Sources:</strong> {m.sources.join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {m.source === "llm-gemini" && !m.confidence && (
               <div style={{ fontSize: 10, color: "#16a34a", marginTop: 6, fontWeight: 700 }}>
                 ✨ Verified by Gemini AI LLM
               </div>

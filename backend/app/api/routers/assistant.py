@@ -142,6 +142,52 @@ def _call_gemini_with_guardrails(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# SECURITY & VALIDATION (STAGE 1 & STAGE 5)
+# ──────────────────────────────────────────────────────────────────────────────
+def _is_prompt_injection(text: str) -> bool:
+    """Fast deterministic check for common prompt injections and out-of-domain queries."""
+    lower_text = text.lower()
+    injections = [
+        "ignore previous instructions", "system prompt", "reveal your instructions",
+        "write a poem", "capital of", "who is the prime minister", "tell me a joke",
+        "drop table", "api key", "banned word", "bypass"
+    ]
+    for inj in injections:
+        if inj in lower_text:
+            return True
+    return False
+
+def _parse_llm_json(raw_text: str) -> Dict[str, Any]:
+    """Stage 5: Validate and parse JSON output from LLM."""
+    try:
+        # Strip markdown code blocks if present
+        clean = raw_text.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```")[1]
+            if clean.startswith("json"):
+                clean = clean[4:]
+        
+        parsed = json.loads(clean.strip())
+        
+        # Validate schema
+        if "response" not in parsed:
+            parsed["response"] = "I could not process this request properly."
+        if "confidence" not in parsed:
+            parsed["confidence"] = "LOW"
+        if "sources" not in parsed:
+            parsed["sources"] = []
+            
+        return parsed
+    except Exception as e:
+        logger.warning(f"Failed to parse LLM JSON: {e}")
+        return {
+            "response": "I encountered an error processing your request. Please try again.",
+            "confidence": "LOW",
+            "sources": []
+        }
+
+# ──────────────────────────────────────────────────────────────────────────────
+
 # PRIORITY SCORE CALCULATION (deterministic, no LLM)
 # ──────────────────────────────────────────────────────────────────────────────
 def _compute_priority(alignment_score: float, job_count: int, missing_count: int) -> float:
@@ -192,6 +238,15 @@ def student_chat_assistant(
         Course.district == district
     ).order_by(SkillGapAnalysis.alignment_score.asc()).first()
 
+    if _is_prompt_injection(message):
+        return {
+            "source": "security-filter",
+            "district": district,
+            "reply": "I am a specialized SkillX AI Assistant. I can only assist with career guidance, skill development, and vocational training queries. How can I help you with your career today?",
+            "confidence": "HIGH",
+            "sources": ["SkillX Safety System"]
+        }
+
     system_instruction = f"""You are the SkillX AI Career Coach — a friendly, knowledgeable personal guide for vocational students in Maharashtra.
 
 STUDENT PROFILE (USE THIS TO PERSONALIZE EVERY RESPONSE):
@@ -215,13 +270,30 @@ RULES:
 5. Use simple, encouraging language. Avoid technical jargon.
 6. Keep responses concise — 3-5 sentences for most answers.
 7. Always end with one concrete next action.
+8. GUARDRAIL: If the user asks a question that is NOT strictly related to vocational training, education, skill development, or job markets, you MUST politely refuse to answer. Say you are specialized in skill development. Do not answer general knowledge questions.
+
+OUTPUT FORMAT:
+You MUST return ONLY a valid JSON object in this exact format, with no markdown formatting around it:
+{{
+  "response": "Your actual helpful response here.",
+  "confidence": "HIGH", // or MEDIUM or LOW based on if you have real data to answer this
+  "sources": ["Course Database", "Salary Benchmarks"] // List where you got the info, or empty array if general
+}}
 """
 
     user_prompt = f"{name} asks ({district} · targeting {career_goal}): {message}"
 
     ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history, temperature=0.65)
+    
     if ai_reply:
-        return {"source": "llm-gemini", "district": district, "reply": ai_reply}
+        parsed = _parse_llm_json(ai_reply)
+        return {
+            "source": "llm-gemini", 
+            "district": district, 
+            "reply": parsed["response"],
+            "confidence": parsed["confidence"],
+            "sources": parsed["sources"]
+        }
 
     # Fallback
     return {
@@ -231,7 +303,9 @@ RULES:
             f"Hi {name}! Based on your goal to become a {career_goal} in {district}, "
             f"I recommend focusing on: {missing}. "
             f"Complete these skills to unlock more job opportunities in {district}'s MIDC clusters."
-        )
+        ),
+        "confidence": "MEDIUM",
+        "sources": ["SkillX Fallback Engine"]
     }
 
 
@@ -331,10 +405,25 @@ def government_chat_assistant(
     district = req.district or "All Districts"
     message = req.message.strip()
 
-    # RAG: pull real gap data
+    # RAG: pull real comprehensive data
     query = db.query(SkillGapAnalysis)
     all_gaps = query.all()
     avg_score = round(sum(g.alignment_score for g in all_gaps) / max(1, len(all_gaps)), 1) if all_gaps else 68.4
+    
+    total_courses = db.query(Course).count()
+    total_jobs = db.query(JobPosting).count()
+    
+    urgent_count = sum(1 for g in all_gaps if g.alignment_score < 60)
+    attention_count = sum(1 for g in all_gaps if 60 <= g.alignment_score < 75)
+    aligned_count = sum(1 for g in all_gaps if g.alignment_score >= 75)
+    
+    all_missing = {}
+    for g in all_gaps:
+        for s in (g.missing_skills or []):
+            all_missing[s] = all_missing.get(s, 0) + 1
+    top_missing_overall = sorted(all_missing.items(), key=lambda x: -x[1])[:5]
+    top_missing_str = ", ".join([f"{s} ({n} courses)" for s, n in top_missing_overall])
+    
     critical_courses = sorted([g for g in all_gaps if g.alignment_score < 60], key=lambda g: g.alignment_score)
 
     critical_list = []
@@ -349,12 +438,25 @@ def government_chat_assistant(
 
     critical_str = "\n".join(critical_list) if critical_list else "- Data being loaded..."
 
+    if _is_prompt_injection(message):
+        return {
+            "source": "security-filter",
+            "district": district,
+            "reply": "I am a specialized SkillX Policy AI Assistant. I can only assist with government policy, skill development, and vocational training queries. Please restrict your questions to these topics.",
+            "confidence": "HIGH",
+            "sources": ["SkillX Safety System"]
+        }
+
     system_instruction = f"""You are the SkillX Government Policy AI Copilot for Maharashtra DVET & District Officers.
 Your role: provide clear, data-backed, plain-English policy recommendations.
 
 REAL MAHARASHTRA SKILL DATA (as of today):
 - District Filter: {district}
+- Total Courses in DB: {total_courses}
+- Total Jobs Analyzed: {total_jobs}
 - State Average Alignment: {avg_score}%
+- Priority Buckets: {urgent_count} Urgent, {attention_count} Attention, {aligned_count} Aligned
+- Top Missing Skills Statewide: {top_missing_str}
 - Courses Needing Urgent Intervention (lowest alignment first):
 {critical_str}
 - Intervention Cost: ₹45,000 per batch of 30 trainees for a 20-hour NCVET Bridge Pack
@@ -366,13 +468,29 @@ RULES:
 3. When recommending actions, cite specific courses and districts from the data.
 4. Be concise: 3-5 bullet points for most answers.
 5. Format with clear markdown headings.
+6. GUARDRAIL: If the user asks a question that is NOT strictly related to government policy, skill development, vocational training, or Maharashtra data, you MUST politely refuse to answer. You do not answer general knowledge questions (e.g. capital of India).
+
+OUTPUT FORMAT:
+You MUST return ONLY a valid JSON object in this exact format, with no markdown formatting around it:
+{{
+  "response": "Your actual policy response here.",
+  "confidence": "HIGH", // or MEDIUM or LOW based on if you have real data to answer this
+  "sources": ["SkillGapAnalysis Data", "Course Database"] // List where you got the info, or empty array if general
+}}
 """
 
     user_prompt = f"Government Officer Query ({district}): {message}"
 
     ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history, temperature=0.3)
     if ai_reply:
-        return {"source": "llm-gemini", "district": district, "reply": ai_reply}
+        parsed = _parse_llm_json(ai_reply)
+        return {
+            "source": "llm-gemini", 
+            "district": district, 
+            "reply": parsed["response"],
+            "confidence": parsed["confidence"],
+            "sources": parsed["sources"]
+        }
 
     return {
         "source": "rule-based-fallback",
@@ -383,7 +501,9 @@ RULES:
             f"- {len(critical_courses)} courses are critically misaligned with employer needs\n"
             f"- Priority action: Update curricula for the trades listed above with targeted 20-hour modules\n"
             f"- Estimated cost per batch: ₹45,000 for 30 trainees"
-        )
+        ),
+        "confidence": "MEDIUM",
+        "sources": ["SkillX Fallback Engine"]
     }
 
 
@@ -420,6 +540,15 @@ def course_chat_assistant(
                 f"- Top Skill Gap: {(gap.top_skill_gaps or [{}])[0].get('skill', 'N/A') if gap.top_skill_gaps else 'N/A'}"
             )
 
+    if _is_prompt_injection(message):
+        return {
+            "source": "security-filter",
+            "course": title,
+            "reply": "I am a specialized SkillX Course Expert. I can only assist with queries related to this course, skill alignment, and job preparation.",
+            "confidence": "HIGH",
+            "sources": ["SkillX Safety System"]
+        }
+
     system_instruction = f"""You are the SkillX Course Expert AI for "{title}" in {district}, Maharashtra.
 You are a knowledgeable mentor who explains this course's strengths and improvement areas in simple terms.
 
@@ -431,18 +560,36 @@ RULES:
 2. When discussing gaps, explain them in plain English (e.g. "PLC is a type of computer used to control machines — many factories need this skill").
 3. Reference actual missing/covered skills from the data above when relevant.
 4. Keep answers concise — 3-5 sentences.
+5. GUARDRAIL: If the user asks a question that is NOT related to this course, skills, or job preparation, you MUST politely refuse to answer. Do not answer general knowledge questions.
+
+OUTPUT FORMAT:
+You MUST return ONLY a valid JSON object in this exact format, with no markdown formatting around it:
+{{
+  "response": "Your helpful response here.",
+  "confidence": "HIGH", // or MEDIUM or LOW based on if you have real data to answer this
+  "sources": ["Course Database", "Job Market Analysis"] // List where you got the info, or empty array if general
+}}
 """
 
     user_prompt = f"Question about {title} in {district}: {message}"
 
     ai_reply = _call_gemini_with_guardrails(system_instruction, user_prompt, history=req.history, temperature=0.6)
     if ai_reply:
-        return {"source": "llm-gemini", "course": title, "reply": ai_reply}
+        parsed = _parse_llm_json(ai_reply)
+        return {
+            "source": "llm-gemini", 
+            "course": title, 
+            "reply": parsed["response"],
+            "confidence": parsed["confidence"],
+            "sources": parsed["sources"]
+        }
 
     return {
         "source": "rule-based-fallback",
         "course": title,
-        "reply": f"The {title} course in {district} is a strong foundation. Focus on the missing skills identified above to maximize your employability in local MIDC clusters."
+        "reply": f"The {title} course in {district} is a strong foundation. Focus on the missing skills identified above to maximize your employability in local MIDC clusters.",
+        "confidence": "MEDIUM",
+        "sources": ["SkillX Fallback Engine"]
     }
 
 

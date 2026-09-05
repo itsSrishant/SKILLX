@@ -125,7 +125,7 @@ interface BridgePackData {
 
 const DEFAULT_PROFILE: StudentProfile = {
   name:             "",
-  district:         "Pune",
+  district:         "",
   education:        "",
   currentTrade:     "",
   existingSkills:   [],
@@ -1878,7 +1878,7 @@ function StudentInner() {
   const [profileLoaded, setProfileLoaded]   = useState(false);
 
   // — Filter state
-  const [selectedDistrict, setSelectedDistrict] = useState("Pune");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedSectors,  setSelectedSectors]  = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [activeCourseAssistant, setActiveCourseAssistant] = useState<{title: string, district: string}|null>(null);
@@ -2278,8 +2278,9 @@ function StudentInner() {
                   width: "100%", padding: "10px 14px", borderRadius: 10,
                   border: `1.5px solid ${C.border}`, background: C.bg,
                   fontSize: 13, fontWeight: 700, color: C.text, outline: "none",
-                  cursor: "pointer",
-                }}>
+                cursor: "pointer",
+              }}>
+                <option value="">All Districts</option>
                 {MAHARASHTRA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>

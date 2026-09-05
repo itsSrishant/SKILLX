@@ -8,6 +8,8 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   loading?: boolean;
+  confidence?: string;
+  sources?: string[];
 };
 
 export function CourseAssistantModal({ 
@@ -82,7 +84,13 @@ export function CourseAssistantModal({
       const data = await res.json();
       
       setMessages(prev => prev.map(m => 
-        m.id === loadingId ? { ...m, content: data.reply || "Sorry, I couldn't process that.", loading: false } : m
+        m.id === loadingId ? { 
+          ...m, 
+          content: data.reply || "Sorry, I couldn't process that.", 
+          loading: false,
+          confidence: data.confidence,
+          sources: data.sources
+        } : m
       ));
     } catch (e) {
       setMessages(prev => prev.map(m => 
@@ -217,6 +225,21 @@ export function CourseAssistantModal({
               ) : (
                 <div className="md-content">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  
+                  {msg.role === "assistant" && (msg.confidence || (msg.sources && msg.sources.length > 0)) && (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(0,0,0,0.05)", fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {msg.confidence && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, color: msg.confidence === "HIGH" ? "#16a34a" : msg.confidence === "MEDIUM" ? "#ca8a04" : "#dc2626", fontWeight: 700 }}>
+                          {msg.confidence === "HIGH" ? "✨ HIGH CONFIDENCE" : msg.confidence === "MEDIUM" ? "⚠️ MEDIUM CONFIDENCE" : "🚨 LOW CONFIDENCE"}
+                        </div>
+                      )}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div style={{ color: "#64748b" }}>
+                          <strong>Sources:</strong> {msg.sources.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
