@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Send, Bot, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useLang } from "@/lib/i18n";
 
 type Message = {
   id: string;
@@ -21,6 +22,7 @@ export function CourseAssistantModal({
   district: string; 
   onClose: () => void;
 }) {
+  const { lang } = useLang();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -78,7 +80,7 @@ export function CourseAssistantModal({
       const res = await fetch(`${API}/api/v1/assistant/course`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, course_title: courseTitle, district: district, history })
+        body: JSON.stringify({ message: userMsg, course_title: courseTitle, district: district, history, language: lang })
       });
 
       const data = await res.json();

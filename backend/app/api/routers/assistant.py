@@ -50,6 +50,7 @@ class StudentChatRequest(BaseModel):
     existing_skills: Optional[List[str]] = []
     missing_skills: Optional[List[str]] = []
     roadmap_completed: Optional[List[str]] = []
+    language: Optional[str] = "en"
 
 class GovernmentChatRequest(BaseModel):
     message: constr(strip_whitespace=True, max_length=1000)
@@ -61,6 +62,7 @@ class CourseChatRequest(BaseModel):
     course_title: constr(max_length=200)
     district: Optional[constr(max_length=50)] = "Pune"
     history: Optional[List[MessageData]] = []
+    language: Optional[str] = "en"
 
 class StudentRoadmapRequest(BaseModel):
     career_goal: str
@@ -69,6 +71,7 @@ class StudentRoadmapRequest(BaseModel):
     missing_skills: Optional[List[str]] = []
     existing_skills: Optional[List[str]] = []
     course_title: Optional[str] = ""
+    language: Optional[str] = "en"
 
 class RoadmapMentorRequest(BaseModel):
     message: constr(strip_whitespace=True, max_length=1000)
@@ -76,6 +79,7 @@ class RoadmapMentorRequest(BaseModel):
     week_title: str
     week_skill: str
     week_activities: List[str]
+    language: Optional[str] = "en"
 
 
 def _call_gemini_with_guardrails(
@@ -211,6 +215,16 @@ def _priority_label(score: float) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# LANGUAGE DIRECTIVE
+# ──────────────────────────────────────────────────────────────────────────────
+def _get_language_directive(lang: str) -> str:
+    if lang == "mr":
+        return "CRITICAL: You MUST respond entirely in Marathi (मराठी). However, KEEP all industry-standard technical terms (e.g., Python, CNC, PLC, Modbus, AI) in English or transliterate them clearly into Marathi script. Do NOT use obscure, difficult translated vocabulary for technical concepts."
+    elif lang == "hi":
+        return "CRITICAL: You MUST respond entirely in Hindi (हिंदी). However, KEEP all industry-standard technical terms (e.g., Python, CNC, PLC, Modbus, AI) in English or transliterate them clearly into Hindi script. Do NOT use obscure, difficult translated vocabulary for technical concepts."
+    return "Respond natively in English."
+
+# ──────────────────────────────────────────────────────────────────────────────
 # 1. Student Portal AI Career Assistant
 # ──────────────────────────────────────────────────────────────────────────────
 @router.post("/student")
@@ -254,7 +268,9 @@ def student_chat_assistant(
             "sources": ["SkillX Safety System"]
         }
 
+    lang_directive = _get_language_directive(req.language)
     system_instruction = f"""You are the SkillX AI Career Coach — a friendly, knowledgeable personal guide for vocational students in Maharashtra.
+{lang_directive}
 
 STUDENT PROFILE (USE THIS TO PERSONALIZE EVERY RESPONSE):
 - Name: {name}
@@ -335,8 +351,11 @@ def generate_student_roadmap(
     missing_str = ", ".join(req.missing_skills[:6]) if req.missing_skills else "core trade skills"
     existing_str = ", ".join(req.existing_skills[:4]) if req.existing_skills else "basic fundamentals"
 
-    system_instruction = """You are the SkillX AI that generates structured learning roadmaps for vocational students in Maharashtra. 
-Always return a valid JSON array and nothing else. No markdown, no explanation text, just the JSON."""
+    lang_directive = _get_language_directive(req.language)
+    system_instruction = f"""You are the SkillX AI that generates structured learning roadmaps for vocational students in Maharashtra. 
+{lang_directive}
+
+STRICT INSTRUCTIONS: Always return a valid JSON array and nothing else. No markdown, no explanation text, just the JSON."""
 
     user_prompt = f"""Generate a 6-week personalized learning roadmap for a student in {req.district}, Maharashtra.
 
@@ -556,8 +575,12 @@ def course_chat_assistant(
             "sources": ["SkillX Safety System"]
         }
 
+    lang_directive = _get_language_directive(req.language)
     system_instruction = f"""You are the SkillX Course Expert AI for "{title}" in {district}, Maharashtra.
+{lang_directive}
+
 You are a knowledgeable mentor who explains this course's strengths and improvement areas in simple terms.
+CONTEXT ABOUT THE COURSE:
 
 REAL DATA FOR THIS COURSE:
 {gap_context if gap_context else '- Course data is being loaded. Provide general guidance.'}
@@ -871,7 +894,9 @@ def roadmap_mentor_chat(
         
     activities_list = "\n".join([f"- {act}" for act in req.week_activities])
         
+    lang_directive = _get_language_directive(req.language)
     system_instruction = f"""You are the SkillX AI Mentor for a specific week of the user's roadmap.
+{lang_directive}
 STRICT GUARDRAILS:
 - You must ONLY answer questions directly related to this week's topic.
 - If the user asks anything outside this scope (e.g., about other skills, general career advice, jokes), POLITELY REFUSE and redirect them back to the week's focus.

@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description:
     "SkillX is a real-time AI-powered skill gap analysis platform for Maharashtra ITI & MSSDS courses, connecting 85 DVET trades with MIDC employer demands via a 4-engine data pipeline.",
   keywords: "SkillX, Maharashtra, ITI, MSSDS, DVET, skill gap, SIH 2026, vocational training",
+  icons: {
+    icon: "/images/logo-dark.png",
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

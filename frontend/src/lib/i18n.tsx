@@ -136,7 +136,7 @@ const translations = {
     navDistricts: "जिल्हे",
     navForecast: "मागणी अंदाज",
     navGaps: "कौशल्य तफावत",
-    navBridge: "ब्रिज पॅक",
+    navBridge: "कौशल्य सेतू",
     navCrawler: "डेटा क्रॉलर",
 
     // Government Intelligence
@@ -190,8 +190,8 @@ const translations = {
     district: "जिल्हा",
     score: "संरेखन गुण",
     missingSkills: "अनुपस्थित कौशल्ये",
-    bridgePack: "ब्रिज पॅक",
-    getBridgePack: "ब्रिज पॅक मिळवा",
+    bridgePack: "कौशल्य सेतू",
+    getBridgePack: "कौशल्य सेतू मिळवा",
     generating: "तयार करत आहे...",
     fullyAligned: "पूर्णपणे संरेखित ✓",
     searchPlaceholder: "अभ्यासक्रम शीर्षक, ट्रेड किंवा क्षेत्र शोधा...",
@@ -201,7 +201,7 @@ const translations = {
     mapSubtitle: "अभ्यासक्रम फिल्टर करण्यासाठी जिल्ह्यावर क्लिक करा",
 
     // Bridge Pack Modal
-    bridgePackTitle: "२०-तास कौशल्य ब्रिज पॅक",
+    bridgePackTitle: "२०-तास कौशल्य सेतू (Bridge Pack)",
     generatedBy: "तयार केले",
     totalHours: "एकूण तास",
     modules: "मॉड्यूल",
@@ -228,12 +228,12 @@ const translations = {
     yourSkillGap: "तुमची कौशल्य तफावत",
     fullyMastered: "पूर्णपणे प्रभुत्व असलेली कौशल्ये",
     skillsToLearn: "शिकायची कौशल्ये",
-    getYourBridgePack: "माझा २०-तास ब्रिज पॅक मिळवा",
+    getYourBridgePack: "माझा २०-तासांचा कौशल्य सेतू मिळवा",
     nsqfLevel: "NSQF स्तर",
     duration: "कालावधी",
     months: "महिने",
     eligibility: "पात्रता",
-    bridgePackReady: "ब्रिज पॅक तयार",
+    bridgePackReady: "कौशल्य सेतू तयार आहे",
     noCoursesFound: "या जिल्ह्यासाठी कोणतेही अभ्यासक्रम आढळले नाहीत. दुसरा जिल्हा किंवा क्षेत्र वापरून पहा.",
   },
   hi: {
@@ -252,7 +252,7 @@ const translations = {
     navDistricts: "जिले",
     navForecast: "मांग पूर्वानुमान",
     navGaps: "कौशल अंतर",
-    navBridge: "ब्रिज पैक",
+    navBridge: "कौशल सेतु",
     navCrawler: "डेटा क्रॉलर",
 
     // Government Intelligence
@@ -306,8 +306,8 @@ const translations = {
     district: "जिला",
     score: "संरेखण स्कोर",
     missingSkills: "अनुपस्थित कौशल",
-    bridgePack: "ब्रिज पैक",
-    getBridgePack: "ब्रिज पैक प्राप्त करें",
+    bridgePack: "कौशल सेतु",
+    getBridgePack: "कौशल सेतु प्राप्त करें",
     generating: "जनरेट हो रहा है...",
     fullyAligned: "पूर्णतः संरेखित ✓",
     searchPlaceholder: "पाठ्यक्रम शीर्षक, ट्रेड या क्षेत्र खोजें...",
@@ -317,7 +317,7 @@ const translations = {
     mapSubtitle: "पाठ्यक्रम फ़िल्टर करने के लिए किसी जिले पर क्लिक करें",
 
     // Bridge Pack Modal
-    bridgePackTitle: "20-घंटे का कौशल ब्रिज पैक",
+    bridgePackTitle: "२०-घंटे कौशल सेतु",
     generatedBy: "द्वारा जनरेट किया गया",
     totalHours: "कुल घंटे",
     modules: "मॉड्यूल",
@@ -344,12 +344,12 @@ const translations = {
     yourSkillGap: "आपका कौशल अंतर",
     fullyMastered: "पूर्णतः महारत हासिल कौशल",
     skillsToLearn: "सीखने योग्य कौशल",
-    getYourBridgePack: "मेरा 20-घंटे का ब्रिज पैक प्राप्त करें",
+    getYourBridgePack: "मेरा २०-घंटे का कौशल सेतु प्राप्त करें",
     nsqfLevel: "NSQF स्तर",
     duration: "अवधि",
     months: "महीने",
     eligibility: "पात्रता",
-    bridgePackReady: "ब्रिज पैक तैयार",
+    bridgePackReady: "कौशल सेतु तैयार है",
     noCoursesFound: "इस जिले के लिए कोई पाठ्यक्रम नहीं मिला। कृपया दूसरा जिला या क्षेत्र चुनें।",
   },
 };
