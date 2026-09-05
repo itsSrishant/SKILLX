@@ -297,6 +297,12 @@ function AIRoadmap({
   const [expandedWeek, setExpandedWeek] = useState<number | null>(1);
   const [completedWeeks, setCompletedWeeks] = useState<Set<number>>(new Set());
   const [generated, setGenerated] = useState(false);
+  
+  // New Interactive States
+  const [completedActivities, setCompletedActivities] = useState<Set<string>>(new Set());
+  const [mentorMessages, setMentorMessages] = useState<Record<number, {role: string, content: string}[]>>({});
+  const [mentorInput, setMentorInput] = useState<Record<number, string>>({});
+  const [mentorLoading, setMentorLoading] = useState<Record<number, boolean>>({});
 
   const loadingSteps = ["Analyzing your skills...", "Matching to career goal...", "Building your roadmap..."];
 
@@ -339,6 +345,51 @@ function AIRoadmap({
       if (next.has(week)) next.delete(week); else next.add(week);
       return next;
     });
+  };
+
+  const toggleActivityComplete = (week: number, actIdx: number) => {
+    const key = `${week}-${actIdx}`;
+    setCompletedActivities(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleMentorChat = async (weekStep: RoadmapStep) => {
+    const text = mentorInput[weekStep.week]?.trim();
+    if (!text) return;
+
+    const newMsg = { role: "user", content: text };
+    const history = mentorMessages[weekStep.week] || [];
+    
+    setMentorMessages(prev => ({ ...prev, [weekStep.week]: [...history, newMsg] }));
+    setMentorInput(prev => ({ ...prev, [weekStep.week]: "" }));
+    setMentorLoading(prev => ({ ...prev, [weekStep.week]: true }));
+
+    try {
+      const res = await fetch(`${API}/api/v1/assistant/roadmap-mentor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          history: history,
+          week_title: weekStep.title,
+          week_skill: weekStep.skill,
+          week_activities: weekStep.activities,
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMentorMessages(prev => ({
+          ...prev,
+          [weekStep.week]: [...(prev[weekStep.week] || []), { role: "model", content: data.reply }]
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setMentorLoading(prev => ({ ...prev, [weekStep.week]: false }));
   };
 
   const statusColor = (step: RoadmapStep, isCompleted: boolean) => {
@@ -390,6 +441,16 @@ function AIRoadmap({
         )}
       </div>
 
+      {generated && roadmap.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <ProgressBar 
+            value={Math.round((completedWeeks.size / roadmap.length) * 100)} 
+            color={C.orange} 
+            label="Mastery Progress" 
+          />
+        </div>
+      )}
+
       {loading && !generated && (
         <div style={{ padding: "40px", textAlign: "center" }}>
           <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid ${C.orange}`, borderTopColor: "transparent", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
@@ -422,6 +483,13 @@ function AIRoadmap({
             const isCompleted = completedWeeks.has(step.week);
             const isExpanded = expandedWeek === step.week;
             const color = statusColor(step, isCompleted);
+            
+            // Visual time-boxing chart
+            const totalHours = Math.max(step.hours, 1);
+            const theoryHours = Math.max(1, Math.floor(totalHours * 0.4));
+            const practicalHours = totalHours - theoryHours;
+            const msgs = mentorMessages[step.week] || [];
+
             return (
               <div key={step.week} style={{
                 borderRadius: 12, border: `1px solid ${isCompleted ? C.green + "40" : isExpanded ? C.orange + "40" : C.border}`,
@@ -455,8 +523,9 @@ function AIRoadmap({
                         <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: C.orangeLight, color: C.orange }}>NOW</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
-                      ⏱ {step.hours}h · {step.skill}
+                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>⏱ {step.hours}h</span>
+                      <span>· {step.skill}</span>
                     </div>
                   </div>
                   <div style={{ fontSize: 14, color: C.textMuted, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}>▼</div>
@@ -465,41 +534,127 @@ function AIRoadmap({
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div style={{ padding: "0 18px 18px", borderTop: `1px solid ${C.border}` }}>
+                    
+                    {/* Time breakdown visualizer */}
+                    <div style={{ marginTop: 16, marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: C.textSub, marginBottom: 4 }}>
+                        <span>Time Allocation ({step.hours}h total)</span>
+                      </div>
+                      <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden", background: C.bg }}>
+                        <div style={{ width: `${(theoryHours / totalHours) * 100}%`, background: C.cyan }} title="Theory / Concepts" />
+                        <div style={{ width: `${(practicalHours / totalHours) * 100}%`, background: C.orange }} title="Practical / Hands-on" />
+                      </div>
+                      <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 10, color: C.textMuted }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: C.cyan }}/> Theory ({theoryHours}h)</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: C.orange }}/> Practical ({practicalHours}h)</span>
+                      </div>
+                    </div>
+
                     {/* Why */}
                     <div style={{
-                      background: C.cyanLight, borderRadius: 8, padding: "10px 14px", marginBottom: 12, marginTop: 14,
+                      background: C.cyanLight, borderRadius: 8, padding: "10px 14px", marginBottom: 16,
                       border: `1px solid ${C.cyanMid}`,
                     }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.cyan, marginBottom: 4 }}>💡 WHY AM I LEARNING THIS?</div>
                       <div style={{ fontSize: 13, color: C.textSub }}>{step.why}</div>
                     </div>
-                    {/* Activities */}
-                    <div style={{ marginBottom: 12 }}>
+                    
+                    {/* Interactive Activities */}
+                    <div style={{ marginBottom: 16 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, marginBottom: 8 }}>ACTIVITIES THIS WEEK</div>
-                      {step.activities.map((act, i) => (
-                        <div key={i} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: "50%", background: C.orangeLight, border: `1.5px solid ${C.orange}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: C.orange, flexShrink: 0 }}>{i + 1}</div>
-                          <span style={{ fontSize: 13, color: C.textSub }}>{act}</span>
-                        </div>
-                      ))}
+                      {step.activities.map((act, i) => {
+                        const isActDone = completedActivities.has(`${step.week}-${i}`);
+                        return (
+                          <div 
+                            key={i} 
+                            onClick={() => toggleActivityComplete(step.week, i)}
+                            style={{ 
+                              display: "flex", gap: 10, marginBottom: 8, padding: "8px 12px", 
+                              borderRadius: 8, border: `1px solid ${isActDone ? C.greenMid : C.border}`,
+                              background: isActDone ? C.greenLight : C.bg,
+                              cursor: "pointer", transition: "all 0.2s", alignItems: "center"
+                            }}
+                          >
+                            <div style={{ 
+                              width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${isActDone ? C.green : C.textMuted}`, 
+                              background: isActDone ? C.green : "white", color: "white", 
+                              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 
+                            }}>
+                              {isActDone ? "✓" : ""}
+                            </div>
+                            <span style={{ fontSize: 13, color: isActDone ? C.green : C.textSub, textDecoration: isActDone ? "line-through" : "none" }}>{act}</span>
+                          </div>
+                        );
+                      })}
                     </div>
+
                     {/* Milestone */}
                     <div style={{
                       background: `linear-gradient(135deg, ${C.purple}15, ${C.cyan}10)`,
-                      borderRadius: 8, padding: "10px 14px",
-                      border: `1px solid ${C.purpleMid}`,
+                      borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+                      border: `1px solid ${C.purpleMid}`, display: "flex", gap: 12, alignItems: "center"
                     }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, marginBottom: 3 }}>🏆 MILESTONE</div>
-                      <div style={{ fontSize: 13, color: C.textSub }}>{step.milestone}</div>
+                      <div style={{ fontSize: 24 }}>🏆</div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, marginBottom: 2 }}>WEEKLY MILESTONE</div>
+                        <div style={{ fontSize: 13, color: C.textSub, fontWeight: 500 }}>{step.milestone}</div>
+                      </div>
                     </div>
+
+                    {/* "Ask Your Mentor" Chatbox */}
+                    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", background: "white" }}>
+                      <div style={{ background: C.slate900, color: "white", padding: "8px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>🧠 Ask Mentor:</span> 
+                        <span style={{ color: C.cyan, fontWeight: 500 }}>Strictly about Week {step.week}</span>
+                      </div>
+                      
+                      {msgs.length > 0 && (
+                        <div style={{ padding: "12px 14px", maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, background: C.bg }}>
+                          {msgs.map((m, i) => (
+                            <div key={i} style={{ 
+                              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                              background: m.role === "user" ? C.orange : "white",
+                              color: m.role === "user" ? "white" : C.text,
+                              border: m.role === "user" ? "none" : `1px solid ${C.border}`,
+                              padding: "8px 12px", borderRadius: 12, fontSize: 12, maxWidth: "85%"
+                            }}>
+                              {m.content}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", padding: "10px", gap: 8, borderTop: `1px solid ${C.border}` }}>
+                        <input 
+                          type="text" 
+                          placeholder={`Ask about ${step.skill}...`}
+                          value={mentorInput[step.week] || ""}
+                          onChange={e => setMentorInput(prev => ({...prev, [step.week]: e.target.value}))}
+                          onKeyDown={e => e.key === "Enter" && handleMentorChat(step)}
+                          style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, outline: "none" }}
+                        />
+                        <button 
+                          onClick={() => handleMentorChat(step)}
+                          disabled={mentorLoading[step.week]}
+                          style={{ 
+                            background: C.orange, color: "white", border: "none", borderRadius: 8, 
+                            padding: "0 16px", fontWeight: 700, cursor: "pointer" 
+                          }}
+                        >
+                          {mentorLoading[step.week] ? "..." : "Ask"}
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Mark complete */}
                     <button
                       onClick={() => toggleWeekComplete(step.week)}
                       style={{
-                        marginTop: 14, width: "100%", padding: "10px", borderRadius: 10, border: "none",
-                        background: isCompleted ? C.redLight : C.greenLight,
-                        color: isCompleted ? C.red : C.green,
+                        marginTop: 16, width: "100%", padding: "12px", borderRadius: 10, border: "none",
+                        background: isCompleted ? C.redLight : C.green,
+                        color: isCompleted ? C.red : "white",
                         fontWeight: 700, fontSize: 13, cursor: "pointer",
+                        boxShadow: isCompleted ? "none" : "0 4px 14px rgba(34,197,94,0.30)",
                       }}>
                       {isCompleted ? "✗ Mark Incomplete" : "✓ Mark Week Complete"}
                     </button>
@@ -514,7 +669,7 @@ function AIRoadmap({
             <div style={{
               background: `linear-gradient(135deg, ${C.green}15, ${C.cyan}10)`,
               borderRadius: 12, padding: "16px 20px", textAlign: "center",
-              border: `1px solid ${C.greenMid}`,
+              border: `1px solid ${C.greenMid}`, marginTop: 10
             }}>
               <div style={{ fontSize: 24, marginBottom: 6 }}>🎯</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>
@@ -1184,132 +1339,135 @@ function SkillUpgradeModal({
 // CAREER PATHWAY VISUALIZATION
 // ──────────────────────────────────────────────────────────────────────────────
 function CareerPathway({
-  course, profile,
+  course, profile, onEditProfile,
 }: {
   course:  CourseRec | null;
   profile: StudentProfile;
+  onEditProfile: () => void;
 }) {
   if (!course) return null;
 
-  const stages = [
-    {
-      icon: "👤", label: "Current State",
-      detail: profile.currentTrade || "Not specified",
-      skills: profile.existingSkills.slice(0, 3),
-      status: "active", color: C.cyan,
-    },
-    {
-      icon: "🎯", label: "Target Role",
-      detail: profile.careerInterest || "Select career goal",
-      skills: [],
-      status: profile.careerInterest ? "active" : "pending", color: C.orange,
-    },
-    {
-      icon: "🔍", label: "Skill Gaps Identified",
-      detail: `${course.missing_skills.length} critical gaps`,
-      skills: course.missing_skills.slice(0, 3),
-      status: "active", color: C.red,
-    },
-    {
-      icon: "📚", label: "Recommended Learning",
-      detail: course.course_title,
-      skills: course.fully_covered_skills.slice(0, 2),
-      status: "recommended", color: C.purple,
-    },
-    {
-      icon: "📦", label: "Bridge Pack",
-      detail: "20-Hour Skill Upgrade Plan",
-      skills: [],
-      status: "next", color: C.green,
-    },
-    {
-      icon: "💼", label: "Job Alignment",
-      detail: `${Math.round(course.alignment_score)}% Match`,
-      skills: [],
-      status: "future", color: C.sky,
-    },
-  ];
+  const jobReadiness = Math.round((course.fully_covered_skills.length / Math.max(1, course.fully_covered_skills.length + course.missing_skills.length)) * 100);
+  const timeToHire = course.missing_skills.length * 2; // Rough estimate: 2 weeks per missing skill
+  const targetSalary = course.alignment_score >= 80 ? "₹18k-25k/mo" : "₹12k-18k/mo";
+  const isProfileEmpty = !profile.careerInterest;
 
   return (
     <div style={{
-      background: C.card, borderRadius: 16, border: `1px solid ${C.border}`,
-      padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+      background: "linear-gradient(to bottom, #ffffff, #f8fafc)",
+      borderRadius: 24, border: `1px solid ${C.border}`,
+      padding: "32px", boxShadow: "0 12px 40px rgba(0,0,0,0.04)",
+      position: "relative", overflow: "hidden"
     }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: C.text }}>
-          Your Career Pathway
+      {/* Dashboard Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
+        <div style={{ flex: 1, minWidth: 300 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <span style={{ fontSize: 24 }}>🧭</span>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 800, color: C.slate900 }}>
+              Your Career GPS
+            </div>
+            <span style={{ padding: "4px 10px", borderRadius: 999, background: C.greenLight, color: C.green, fontSize: 11, fontWeight: 800 }}>LIVE</span>
+          </div>
+          <div style={{ fontSize: 14, color: C.textSub, maxWidth: 500, lineHeight: 1.5 }}>
+            {isProfileEmpty ? (
+              <span><strong>AI Analysis:</strong> We need more information to build your personalized roadmap. Please set your target career goal.</span>
+            ) : (
+              <span><strong>AI Analysis:</strong> You have a solid foundation with {course.fully_covered_skills.length} core skills, making you {jobReadiness}% job-ready for a <strong>{profile.careerInterest}</strong>. Complete the fast-track bridge pack to close your {course.missing_skills.length} skill gaps.</span>
+            )}
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-          Based on your profile and top recommended course
-        </div>
+        
+        {/* Quick Stats */}
+        {!isProfileEmpty && (
+          <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ textAlign: "right", background: "white", padding: "12px 16px", borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Time to Job-Ready</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.slate900, marginTop: 4 }}>~{timeToHire} Weeks</div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, minWidth: 600, paddingBottom: 8 }}>
-          {stages.map((stage, idx) => (
-            <React.Fragment key={stage.label}>
-              {/* Stage node */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                {/* Icon circle */}
-                <div style={{
-                  width: 48, height: 48, borderRadius: "50%", display: "flex",
-                  alignItems: "center", justifyContent: "center", fontSize: 20,
-                  background: stage.status === "future"
-                    ? "rgba(0,0,0,0.04)" : `${stage.color}15`,
-                  border: `2px solid ${stage.status === "future" ? C.border : stage.color}`,
-                  marginBottom: 8,
-                  opacity: stage.status === "future" ? 0.5 : 1,
-                }}>{stage.icon}</div>
+      {/* Vertical Timeline */}
+      <div style={{ position: "relative", paddingLeft: 24 }}>
+        {/* Continuous Line */}
+        <div style={{ position: "absolute", left: 39, top: 20, bottom: 20, width: 3, background: `linear-gradient(to bottom, ${C.cyan}, ${C.orange}, ${C.green})`, borderRadius: 2 }} />
 
-                {/* Label */}
-                <div style={{
-                  fontSize: 11, fontWeight: 700, color: stage.status === "future" ? C.textMuted : stage.color,
-                  textAlign: "center", marginBottom: 4, maxWidth: 80,
-                }}>{stage.label}</div>
-
-                {/* Detail */}
-                <div style={{
-                  fontSize: 10, color: C.textSub, textAlign: "center",
-                  maxWidth: 90, lineHeight: 1.3, marginBottom: 4,
-                }}>{stage.detail}</div>
-
-                {/* Skills preview */}
-                {stage.skills.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center" }}>
-                    {stage.skills.map(s => (
-                      <span key={s} style={{
-                        fontSize: 9, padding: "1px 6px", borderRadius: 999,
-                        background: `${stage.color}12`, color: stage.color, fontWeight: 600,
-                      }}>{s}</span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Status chip */}
-                {stage.status === "recommended" && (
-                  <span style={{
-                    marginTop: 6, fontSize: 9, padding: "2px 8px", borderRadius: 999,
-                    background: C.purpleLight, color: C.purple, fontWeight: 800,
-                  }}>RECOMMENDED</span>
-                )}
-                {stage.status === "next" && (
-                  <span style={{
-                    marginTop: 6, fontSize: 9, padding: "2px 8px", borderRadius: 999,
-                    background: C.greenLight, color: C.green, fontWeight: 800,
-                  }}>NEXT STEP</span>
-                )}
-              </div>
-
-              {/* Arrow connector */}
-              {idx < stages.length - 1 && (
-                <div style={{
-                  display: "flex", alignItems: "center", paddingTop: 12, flexShrink: 0,
-                  color: C.border, fontSize: 16,
-                }}>→</div>
-              )}
-            </React.Fragment>
-          ))}
+        {/* Node 1: Current Baseline */}
+        <div style={{ display: "flex", gap: 24, marginBottom: 32, position: "relative" }}>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.cyan, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, zIndex: 1, border: "4px solid white", boxShadow: "0 0 0 1px rgba(0,0,0,0.05)" }}>👤</div>
+          <div style={{ flex: 1, background: "white", borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.02)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.cyan }}>Your Starting Baseline</div>
+              <button onClick={onEditProfile} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Edit Profile</button>
+            </div>
+            <div style={{ fontSize: 13, color: C.textSub, marginBottom: 12 }}>You currently have experience in <strong>{profile.currentTrade || "general studies"}</strong> and possess these verified skills:</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {profile.existingSkills.length > 0 ? profile.existingSkills.map(s => (
+                <span key={s} style={{ padding: "4px 10px", borderRadius: 6, background: C.cyanLight, color: C.cyan, fontSize: 12, fontWeight: 600 }}>✓ {s}</span>
+              )) : <span style={{ fontSize: 12, color: C.textMuted, fontStyle: "italic" }}>No skills added yet.</span>}
+            </div>
+          </div>
         </div>
+
+        {/* Node 2: Target Goal */}
+        <div style={{ display: "flex", gap: 24, marginBottom: 32, position: "relative" }}>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.orange, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, zIndex: 1, border: "4px solid white", boxShadow: "0 0 0 1px rgba(0,0,0,0.05)" }}>🎯</div>
+          <div style={{ flex: 1, background: "white", borderRadius: 16, border: `1px solid ${C.orange}40`, padding: "20px", boxShadow: "0 4px 15px rgba(249,115,22,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: C.orange, marginBottom: 4 }}>The Target Role</div>
+                <div style={{ fontSize: 20, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: C.slate900 }}>{profile.careerInterest || "Select a Career Goal"}</div>
+              </div>
+              {profile.careerInterest ? (
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Target Salary (MIDC)</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: C.green, marginTop: 4 }}>{targetSalary}</div>
+                </div>
+              ) : (
+                <button onClick={onEditProfile} style={{ padding: "8px 16px", borderRadius: 8, background: C.orange, color: "white", fontWeight: 700, border: "none", cursor: "pointer", fontSize: 13 }}>Set Goal</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Node 3: The Gap */}
+        {!isProfileEmpty && (
+          <div style={{ display: "flex", gap: 24, marginBottom: 32, position: "relative" }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.red, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, zIndex: 1, border: "4px solid white", boxShadow: "0 0 0 1px rgba(0,0,0,0.05)" }}>⚠️</div>
+            <div style={{ flex: 1, background: C.redLight, borderRadius: 16, border: `1px solid ${C.red}30`, padding: "20px" }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.red, marginBottom: 12 }}>Critical Skill Gaps Identified</div>
+              <div style={{ fontSize: 13, color: C.textSub, marginBottom: 16 }}>Based on real-time employer demand in {profile.district || "Maharashtra"}, you are missing these {course.missing_skills.length} mandatory skills:</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {course.missing_skills.map(s => (
+                  <span key={s} style={{ padding: "6px 12px", borderRadius: 8, background: "white", color: C.red, fontSize: 12, fontWeight: 700, boxShadow: "0 2px 4px rgba(220,38,38,0.1)" }}>✗ {s}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Node 4: The Action Plan */}
+        {!isProfileEmpty && (
+          <div style={{ display: "flex", gap: 24, position: "relative" }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.green, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, zIndex: 1, border: "4px solid white", boxShadow: "0 0 0 1px rgba(0,0,0,0.05)" }}>🚀</div>
+            <div style={{ flex: 1, background: "white", borderRadius: 16, border: `2px solid ${C.green}`, padding: "24px", boxShadow: "0 8px 25px rgba(22,163,74,0.15)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.green, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Fast-Track Solution</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: C.slate900, marginBottom: 4 }}>{course.course_title} + 20hr Bridge Pack</div>
+                  <div style={{ fontSize: 13, color: C.textSub }}>Enroll in this recommended package to close all your gaps in just ~{timeToHire} weeks.</div>
+                </div>
+                <button 
+                  onClick={() => document.getElementById("ai-roadmap")?.scrollIntoView({ behavior: "smooth" })}
+                  style={{ padding: "12px 24px", borderRadius: 999, background: C.green, color: "white", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 15px rgba(22,163,74,0.3)" }}>
+                  Start My Plan →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2405,10 +2563,83 @@ function StudentInner() {
           </div>
         )}
 
+        {/* ── Student Progress & Job Alignment ─────────────────────────────────── */}
+        {!loading && !error && profile.onboardingDone && topCourse && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 16 }}>
+              Your Readiness Overview
+            </div>
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16,
+            }}>
+              {/* Skill coverage */}
+              <div style={{
+                background: C.card, borderRadius: 16, padding: "20px",
+                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.green}`,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
+                  Skill Coverage
+                </div>
+                <ProgressBar
+                  value={Math.round((topCourse.fully_covered_skills.length /
+                    Math.max(1, topCourse.fully_covered_skills.length + topCourse.missing_skills.length)) * 100)}
+                  color={C.green} label="Skills Covered" />
+                <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted }}>
+                  {topCourse.fully_covered_skills.length} of{" "}
+                  {topCourse.fully_covered_skills.length + topCourse.missing_skills.length} skills matched
+                </div>
+              </div>
+
+              {/* Alignment score */}
+              <div style={{
+                background: C.card, borderRadius: 16, padding: "20px",
+                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.orange}`,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
+                  Industry Alignment
+                </div>
+                <ProgressBar value={Math.round(topCourse.alignment_score)} color={C.orange} label="Employer Demand Match" />
+                <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted }}>
+                  From Engine 4 · 3-tier gap analysis
+                </div>
+              </div>
+
+              {/* Bridge pack readiness */}
+              <div style={{
+                background: C.card, borderRadius: 16, padding: "20px",
+                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.cyan}`,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
+                  Recommended Next Action
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+                  Get Your Bridge Pack
+                </div>
+                <div style={{ fontSize: 12, color: C.textSub, marginBottom: 14 }}>
+                  {topCourse.missing_skills.length} skill gaps can be closed with a 20-hour targeted upgrade.
+                </div>
+                <Link href={`/bridge-pack/${topCourse.course_id}`} style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "8px 16px", borderRadius: 10, textDecoration: "none",
+                  background: `linear-gradient(135deg, ${C.cyan}, ${C.sky})`,
+                  color: "white", fontSize: 12, fontWeight: 700,
+                }}>Start Bridge Pack →</Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Career Pathway ────────────────────────────────────────────────────── */}
         {!loading && !error && profile.onboardingDone && topCourse && (
           <div style={{ marginBottom: 24 }}>
-            <CareerPathway course={topCourse} profile={profile} />
+            <CareerPathway course={topCourse} profile={profile} onEditProfile={() => setShowOnboarding(true)} />
+          </div>
+        )}
+
+        {/* ── AI Roadmap (USP Feature) ────────────────────────────────────────── */}
+        {!loading && !error && profile.onboardingDone && topCourse && (
+          <div style={{ marginBottom: 40 }} id="ai-roadmap">
+            <AIRoadmap profile={profile} topCourse={topCourse} />
           </div>
         )}
 
@@ -2518,71 +2749,6 @@ function StudentInner() {
           </div>
         )}
 
-        {/* ── Student Progress & Job Alignment ─────────────────────────────────── */}
-        {!loading && !error && profile.onboardingDone && topCourse && (
-          <div style={{ marginTop: 32 }}>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 16 }}>
-              Your Readiness Overview
-            </div>
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16,
-            }}>
-              {/* Skill coverage */}
-              <div style={{
-                background: C.card, borderRadius: 16, padding: "20px",
-                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.green}`,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
-                  Skill Coverage
-                </div>
-                <ProgressBar
-                  value={Math.round((topCourse.fully_covered_skills.length /
-                    Math.max(1, topCourse.fully_covered_skills.length + topCourse.missing_skills.length)) * 100)}
-                  color={C.green} label="Skills Covered" />
-                <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted }}>
-                  {topCourse.fully_covered_skills.length} of{" "}
-                  {topCourse.fully_covered_skills.length + topCourse.missing_skills.length} skills matched
-                </div>
-              </div>
-
-              {/* Alignment score */}
-              <div style={{
-                background: C.card, borderRadius: 16, padding: "20px",
-                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.orange}`,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
-                  Industry Alignment
-                </div>
-                <ProgressBar value={Math.round(topCourse.alignment_score)} color={C.orange} label="Employer Demand Match" />
-                <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted }}>
-                  From Engine 4 · 3-tier gap analysis
-                </div>
-              </div>
-
-              {/* Bridge pack readiness */}
-              <div style={{
-                background: C.card, borderRadius: 16, padding: "20px",
-                border: `1px solid ${C.border}`, borderTop: `3px solid ${C.cyan}`,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub, marginBottom: 12 }}>
-                  Recommended Next Action
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 6 }}>
-                  Get Your Bridge Pack
-                </div>
-                <div style={{ fontSize: 12, color: C.textSub, marginBottom: 14 }}>
-                  {topCourse.missing_skills.length} skill gaps can be closed with a 20-hour targeted upgrade.
-                </div>
-                <Link href={`/bridge-pack/${topCourse.course_id}`} style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "8px 16px", borderRadius: 10, textDecoration: "none",
-                  background: `linear-gradient(135deg, ${C.cyan}, ${C.sky})`,
-                  color: "white", fontSize: 12, fontWeight: 700,
-                }}>Start Bridge Pack →</Link>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
       {/* ── Floating Chat Assistant ────────────────────────────────────────────── */}

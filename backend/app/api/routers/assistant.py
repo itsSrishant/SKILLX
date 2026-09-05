@@ -70,6 +70,13 @@ class StudentRoadmapRequest(BaseModel):
     existing_skills: Optional[List[str]] = []
     course_title: Optional[str] = ""
 
+class RoadmapMentorRequest(BaseModel):
+    message: constr(strip_whitespace=True, max_length=1000)
+    history: Optional[List[MessageData]] = []
+    week_title: str
+    week_skill: str
+    week_activities: List[str]
+
 
 def _call_gemini_with_guardrails(
     system_instruction: str,
@@ -841,3 +848,63 @@ def clear_llm_cache(admin_user: str = Depends(verify_admin_key)):
     count = len(_llm_cache)
     _llm_cache.clear()
     return {"cleared": count, "message": f"Cleared {count} cached LLM results"}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 9. AI Roadmap Mentor (Strict Week Context)
+# ──────────────────────────────────────────────────────────────────────────────
+@router.post("/roadmap-mentor")
+@limiter.limit("20/minute")
+def roadmap_mentor_chat(
+    request: Request,
+    req: RoadmapMentorRequest,
+):
+    """Highly constrained tutor specifically for one week of the roadmap."""
+    message = req.message.strip()
+    
+    if _is_prompt_injection(message):
+        return {
+            "source": "security-filter",
+            "reply": "I am your Roadmap Mentor. I can only assist with topics directly related to this week's curriculum.",
+            "confidence": "HIGH",
+            "sources": ["Safety System"]
+        }
+        
+    activities_list = "\n".join([f"- {act}" for act in req.week_activities])
+        
+    system_instruction = f"""You are the SkillX AI Mentor for a specific week of the user's roadmap.
+STRICT GUARDRAILS:
+- You must ONLY answer questions directly related to this week's topic.
+- If the user asks anything outside this scope (e.g., about other skills, general career advice, jokes), POLITELY REFUSE and redirect them back to the week's focus.
+
+CURRENT WEEK FOCUS:
+Title: {req.week_title}
+Core Skill: {req.week_skill}
+Activities:
+{activities_list}
+
+Tone: Encouraging, strictly on-topic, helpful, concise. Do not use Markdown formatting for lists if it's very short.
+"""
+
+    prompt = f"Student says: {message}\n\nRespond as the Mentor (strictly adhere to guardrails)."
+
+    response_text = _call_gemini_with_guardrails(
+        system_instruction=system_instruction,
+        user_prompt=prompt,
+        history=req.history,
+        temperature=0.3
+    )
+
+    if not response_text:
+        return {
+            "source": "roadmap-mentor",
+            "reply": "I am currently unavailable to answer questions about this week. Please review your activities.",
+            "confidence": "LOW",
+            "sources": []
+        }
+
+    return {
+        "source": "roadmap-mentor",
+        "reply": response_text,
+        "confidence": "HIGH",
+        "sources": [req.week_skill]
+    }
