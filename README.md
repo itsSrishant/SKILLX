@@ -165,7 +165,6 @@ flowchart TB
 - **Backend:** FastAPI, SQLAlchemy, Python 3.9+
 - **Database:** SQLite (Development) → PostgreSQL-ready architecture
 - **AI/NLP:** spaCy-based local extraction + Google Gemini 1.5 Flash integration
-- **Deployment:** Vercel (Frontend & Serverless API Proxy)
 
 ---
 
@@ -194,9 +193,9 @@ npm run dev
 
 ## 🎥 Demo
 
-**Live Application:** [SkillX on Vercel](https://skillx-ashen-two.vercel.app)
+**Local Prototype**
 
-*(A working prototype demonstration showcasing the complete workflow from demand analysis to skill-gap identification and AI recommendations.)*
+*(A working prototype demonstration showcasing the complete workflow from demand analysis to skill-gap identification and AI recommendations can be run locally following the setup instructions.)*
 
 ---
 
