@@ -115,17 +115,17 @@ This creates a direct connection between **macro labour-market intelligence and 
 ```mermaid
 flowchart TB
     subgraph Data Sources
-    C_DATA[Course Data<br>ITI / MSSDS]
-    J_DATA[Job Market Data<br>Scraped & Ingested]
+    C_DATA["Course Data<br>ITI / MSSDS"]
+    J_DATA["Job Market Data<br>Scraped & Ingested"]
     end
 
     subgraph Processing Layer
-    NORM[Course Normalization]
-    EXTRACT[Skill Extraction & Standardization<br>Local NLP]
+    NORM["Course Normalization"]
+    EXTRACT["Skill Extraction & Standardization<br>Local NLP"]
     end
 
     subgraph Intelligence Engine
-    GAP{Demand ↔ Curriculum<br>Skill-Gap Engine}
+    GAP{"Demand ↔ Curriculum<br>Skill-Gap Engine"}
     end
 
     subgraph Output
