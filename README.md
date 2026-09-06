@@ -24,7 +24,7 @@
 
 Skill-development programs often become disconnected from rapidly changing technologies, local industry demand, emerging job roles, and employer expectations. This creates a severe **skill mismatch**:
 
-**Industry demands new skills → Courses continue teaching outdated/insufficient skills → Learners graduate without the skills employers need.**
+**Industry demands new skills → Courses continue teaching outdated/insufficient skills → Students graduate without the skills employers need.**
 
 The SIH problem statement calls for an evidence-based system that continuously translates industry demand into **course design, capacity planning, trainer development, and candidate guidance**.
 
@@ -41,7 +41,7 @@ graph TD
     E --> F{Skill-Gap Analysis}
     F -->|Identified Gaps| G[Actionable Recommendations]
     G --> H[Bridge Packs + Training Insights]
-    H --> I((Learners & Policymakers))
+    H --> I((Students & Policymakers))
 ```
 
 ---
@@ -58,7 +58,7 @@ graph TD
 | **Detect outdated / weak alignment** | 🔍 **Demand vs Curriculum Comparison** |
 | **Recommend ways to close skill gaps** | ⚡ **AI Bridge Pack Generator** |
 | **Support district-level planning** | 🗺️ **Maharashtra District Intelligence Map** |
-| **Help learners understand career relevance** | 👨‍🎓 **Student AI Portal** |
+| **Help students understand career relevance** | 👨‍🎓 **Student AI Portal** |
 | **Reduce dependency on expensive external AI APIs**| 🛡️ **Local NLP + Rule-Based Fallbacks** |
 
 ---
@@ -99,12 +99,13 @@ Traditional course catalogs primarily answer:
 
 ## 👨‍🎓 Student Portal
 
-SkillX extends beyond policymakers and training institutions. Learners can use the specialized **Student Portal** to understand:
+SkillX extends beyond policymakers and training institutions. Students can use the specialized **Student Portal** to understand:
 
 - Whether their enrolled course aligns with current industry demand.
 - Which exact skills the course develops.
 - Which *additional* skills employers are looking for.
 - What personalized learning path can help bridge their identified gap.
+- **✨ Personalized LLM Insights:** Receive tailored, AI-generated career advice, dynamically generated roadmaps, and 1-on-1 AI mentorship based on your unique skill profile and local job market trends.
 
 This creates a direct connection between **macro labour-market intelligence and micro individual career decisions**.
 
@@ -132,7 +133,7 @@ flowchart TB
     REC[Actionable Recommendations]
     BP[AI Bridge Packs]
     DI[District Insights]
-    USERS((Learners, Institutions, Policymakers))
+    USERS((Students, Institutions, Policymakers))
     end
 
     C_DATA --> NORM
@@ -155,7 +156,7 @@ flowchart TB
 - 🔍 **Explainable AI** — Transparently identifies exactly which skills are contributing to a detected gap.
 - ⚡ **Action-Oriented** — Converts theoretical gaps into highly practical Bridge Pack recommendations.
 - 💰 **Cost-Efficient AI** — Local NLP and rule-based fallbacks reduce dependence on paid external APIs, ensuring long-term sustainability.
-- 🤝 **Multi-Stakeholder** — Custom dashboards designed for learners, institutions, training providers, and government policymakers.
+- 🤝 **Multi-Stakeholder** — Custom dashboards designed for students, institutions, training providers, and government policymakers.
 
 ---
 
